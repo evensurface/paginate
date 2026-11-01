@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+**/dist/
+build/
+**/build/
+lib/
+**/lib/
+esm/
+**/esm/
+cjs/
+**/cjs/
+types/
+**/types/
+coverage/
+**/coverage/
+artifacts/
+**/artifacts/
+.artifacts/
+
+# Turborepo
+.turbo/
+**/.turbo/
+
+# TypeScript
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Package manager state
+.pnpm-store/
+.npm/
+.yarn/
+!.yarn/patches/
+!.yarn/plugins/
+!.yarn/releases/
+!.yarn/sdks/
+!.yarn/versions/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

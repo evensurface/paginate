@@ -1,10 +1,6 @@
-
-import { createPaginationMetadata } from "./metadata";
-import { calculateOffset, parseLimit, parsePage } from "./page";
-import type {
-  PaginatedResult,
-  PaginationOptions,
-} from "./types";
+import { createPaginationMetadata } from "./metadata"
+import { parseLimit, parsePage } from "./page"
+import type { PaginatedResult, PaginationOptions } from "./types"
 
 /**
  * Executes offset-based pagination using a provided adapter.
@@ -28,44 +24,25 @@ export async function paginate<TQuery, TCountQuery, TItem>({
   page: requestedPage,
   limit: requestedLimit,
   pageSizeOptions,
-}: PaginationOptions<TQuery, TCountQuery, TItem>): Promise<
-  PaginatedResult<TItem>
-> {
-  const page = parsePage(requestedPage);
-  const limit = parseLimit(requestedLimit, pageSizeOptions);
-  const offset = calculateOffset(page, limit);
-
-  // Execute both queries concurrently.
-  const [items, total] = await Promise.all([
-    adapter.fetch(query, { limit, offset }),
-    adapter.count(countQuery),
-  ]);
-
-  // Validate the total and resolve the requested page.
+}: PaginationOptions<TQuery, TCountQuery, TItem>): Promise<PaginatedResult<TItem>> {
+  const page = parsePage(requestedPage)
+  const limit = parseLimit(requestedLimit, pageSizeOptions)
+  const total = await adapter.count(countQuery)
   const pagination = createPaginationMetadata({
     page,
     limit,
     total,
-  });
+  })
 
-  // Return immediately when the requested page is valid.
-  if (pagination.page === page) {
-    return { items, pagination };
-  }
-
-  // Empty datasets do not require another query.
+  // There is nothing to fetch for an empty dataset.
   if (total === 0) {
-    return { items: [], pagination };
+    return { items: [], pagination }
   }
 
-  // Re-fetch when the requested page exceeds the last page.
-  const resolvedItems = await adapter.fetch(query, {
+  const items = await adapter.fetch(query, {
     limit,
     offset: pagination.offset,
-  });
+  })
 
-  return {
-    items: resolvedItems,
-    pagination,
-  };
+  return { items, pagination }
 }

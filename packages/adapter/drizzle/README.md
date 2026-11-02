@@ -2,6 +2,8 @@
 
 Database-only offset pagination for Drizzle ORM, powered by `@seashq/pager`.
 
+Requires Node.js 18.18 or newer.
+
 It applies `limit` and `offset` to a Drizzle select query, executes a matching count query,
 and returns inferred rows with pagination metadata. It does not provide routing, service, or UI
 abstractions.

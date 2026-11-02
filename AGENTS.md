@@ -12,7 +12,7 @@ metadata in `.changeset`, and contributor notes in `docs/`. Generated `dist/`, c
 
 ## Build, Test, and Development Commands
 
-Use Node.js 18.18 or newer and pnpm 11.15.0.
+Use Node.js 22.18 or newer and pnpm 11.15.0.
 
 - `pnpm install --frozen-lockfile` installs the exact locked dependency graph.
 - `pnpm dev` starts package builds in watch mode.

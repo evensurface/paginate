@@ -2,6 +2,9 @@
 
 Framework-independent, ORM-agnostic utilities for offset pagination.
 
+Development requires Node.js 22.18 or newer. The published packages support Node.js 18.18 and
+newer.
+
 `@seashq/pager` provides page and limit parsing, offset calculation, pagination metadata,
 page-navigation windows, and adapter-based pagination. It supports offset pagination only.
 

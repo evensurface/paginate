@@ -1,7 +1,7 @@
 {
-  "name": "npm-starter",
+  "name": "seashq-pager",
   "version": "1.0.0",
-  "description": "A TypeScript-ready npm package workspace starter.",
+  "description": "A framework-independent, ORM-agnostic offset pagination package.",
   "private": true,
   "packageManager": "pnpm@11.15.0",
   "scripts": {
@@ -12,13 +12,17 @@
     "dev": "turbo run dev",
     "format": "biome format --write .",
     "lint": "biome lint .",
-    "pack": "pnpm --filter npm-starter pack --pack-destination .artifacts",
+    "pack": "pnpm --filter @seashq/pager pack --pack-destination .artifacts",
     "release": "pnpm build && changeset publish",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "version-packages": "changeset version"
   },
-  "keywords": [],
+  "keywords": [
+    "pagination",
+    "offset-pagination",
+    "typescript"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {

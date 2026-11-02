@@ -1,21 +1,21 @@
-# TypeScript npm package starter
+# @seashq/pager
 
-A production-ready starting point for a TypeScript npm package. It provides ESM and CommonJS builds, generated type declarations, formatting and linting, release versioning, and continuous integration.
+Framework-independent, ORM-agnostic utilities for offset pagination.
 
-## Start building
+`@seashq/pager` provides page and limit parsing, offset calculation, pagination metadata,
+page-navigation windows, and adapter-based pagination. It supports offset pagination only.
 
-Add your package's public API in `packages/npm-starter/src/index.ts`. Anything exported from this file becomes part of your published API.
-
-## Development
+## Installation
 
 ```sh
-pnpm install
-pnpm check
-pnpm test
-pnpm build
+pnpm add @seashq/pager
 ```
 
-To publish a release, add a changeset with `pnpm changeset`, then run `pnpm version-packages` and `pnpm release` after the version bump has been committed.
+## API
+
+The package exports `paginate`, `parsePage`, `parseLimit`, `calculateOffset`,
+`resolvePage`, `createPaginationMetadata`, and `createPageWindow`, along with the
+types required to implement a `PaginationAdapter`.
 
 ## License
 

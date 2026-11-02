@@ -6,6 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
+    "includes": ["**", "!packages/pager/src/core"],
     "ignoreUnknown": true
   },
   "formatter": {

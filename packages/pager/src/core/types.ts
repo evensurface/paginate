@@ -1,0 +1,40 @@
+export interface PaginationMetadata {
+  page: number;
+  limit: number;
+  offset: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  firstItem: number;
+  lastItem: number;
+}
+
+export type PaginationPageItem = number | "ellipsis";
+
+import type { PageSizeOptions } from "./page";
+
+export interface PaginationAdapter<TQuery, TCountQuery, TItem> {
+  fetch(
+    query: TQuery,
+    options: { limit: number; offset: number },
+  ): Promise<TItem[]>;
+
+  count(query: TCountQuery): Promise<number>;
+}
+
+export interface PaginationOptions<TQuery, TCountQuery, TItem> {
+  adapter: PaginationAdapter<TQuery, TCountQuery, TItem>;
+
+  query: TQuery;
+  countQuery: TCountQuery;
+
+  page?: unknown;
+  limit?: unknown;
+  pageSizeOptions?: PageSizeOptions;
+}
+
+export interface PaginatedResult<TItem> {
+  items: TItem[];
+  pagination: PaginationMetadata;
+}

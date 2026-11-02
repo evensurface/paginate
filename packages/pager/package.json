@@ -1,7 +1,7 @@
 {
-  "name": "npm-starter",
+  "name": "@seashq/pager",
   "version": "1.0.0",
-  "description": "A production-ready TypeScript npm package starter.",
+  "description": "Framework-independent, ORM-agnostic offset pagination for TypeScript.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -30,10 +30,10 @@
     "test": "vitest run --passWithNoTests"
   },
   "keywords": [
-    "npm-package",
-    "starter",
+    "pagination",
+    "offset-pagination",
     "typescript",
-    "utility"
+    "orm-agnostic"
   ],
   "author": "",
   "license": "MIT",

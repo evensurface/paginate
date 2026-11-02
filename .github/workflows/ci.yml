@@ -25,8 +25,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm --filter @seashq/pager pack --pack-destination .artifacts
-      - run: pnpm --filter @seashq/pager-drizzle pack --pack-destination .artifacts
+      - run: pnpm --filter @evensurface/paginate pack --pack-destination .artifacts
+      - run: pnpm --filter @evensurface/paginate-drizzle pack --pack-destination .artifacts
       - name: Use Node.js 18.18
         uses: actions/setup-node@v4
         with:
@@ -35,14 +35,14 @@ jobs:
         run: |
           node --input-type=module --eval "
             import assert from 'node:assert/strict'
-            import * as pager from './packages/pager/dist/index.mjs'
+            import * as pager from './packages/paginate/dist/index.mjs'
             import * as drizzle from './packages/adapter/drizzle/dist/index.mjs'
             assert.equal(pager.parsePage('3'), 3)
             assert.equal(typeof drizzle.paginate, 'function')
           "
           node --eval "
             const assert = require('node:assert/strict')
-            const pager = require('./packages/pager/dist/index.cjs')
+            const pager = require('./packages/paginate/dist/index.cjs')
             const drizzle = require('./packages/adapter/drizzle/dist/index.cjs')
             assert.equal(pager.parsePage('3'), 3)
             assert.equal(typeof drizzle.paginate, 'function')

@@ -1,21 +1,26 @@
-# @seashq/pager
+# @evensurface/paginate
 
-Framework-independent, ORM-agnostic utilities for offset pagination.
+Framework-independent, ORM-agnostic offset pagination by
+[Evensurface](https://evensurface.com).
+
+> The `@evensurface` npm scope and the
+> [`evensurface/paginate`](https://github.com/evensurface/paginate) repository are planned
+> placeholders and are not live yet.
 
 Development requires Node.js 22.18 or newer. The published packages support Node.js 18.18 and
 newer.
 
-`@seashq/pager` provides page and limit parsing, offset calculation, pagination metadata,
+`@evensurface/paginate` provides page and limit parsing, offset calculation, pagination metadata,
 page-navigation windows, and adapter-based pagination. It supports offset pagination only.
 
 First-party ORM integrations:
 
-- [`@seashq/pager-drizzle`](packages/adapter/drizzle/README.md) for Drizzle ORM
+- [`@evensurface/paginate-drizzle`](packages/adapter/drizzle/README.md) for Drizzle ORM
 
 ## Installation
 
 ```sh
-pnpm add @seashq/pager
+pnpm add @evensurface/paginate
 ```
 
 ## API

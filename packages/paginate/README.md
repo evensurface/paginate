@@ -1,4 +1,4 @@
-# @seashq/pager
+# @evensurface/paginate
 
 Framework-independent, ORM-agnostic offset pagination for TypeScript.
 
@@ -13,7 +13,7 @@ database integrations.
 ## Installation
 
 ```sh
-pnpm add @seashq/pager
+pnpm add @evensurface/paginate
 ```
 
 ## Basic usage
@@ -21,7 +21,7 @@ pnpm add @seashq/pager
 Provide an adapter that knows how to count and fetch records for your data source:
 
 ```ts
-import { paginate, type PaginationAdapter } from "@seashq/pager"
+import { paginate, type PaginationAdapter } from "@evensurface/paginate"
 
 type UserQuery = { active: boolean }
 type User = { id: number; name: string }
@@ -96,7 +96,7 @@ import {
   createPaginationMetadata,
   parseLimit,
   parsePage,
-} from "@seashq/pager"
+} from "@evensurface/paginate"
 
 const page = parsePage(request.query.page)
 const limit = parseLimit(request.query.limit)
@@ -110,7 +110,7 @@ const navigation = createPageWindow({ page: pagination.page, totalPages: paginat
 
 ## ORM adapters
 
-Use `@seashq/pager-drizzle` for Drizzle ORM queries. Custom integrations can implement
+Use `@evensurface/paginate-drizzle` for Drizzle ORM queries. Custom integrations can implement
 `PaginationAdapter<TQuery, TCountQuery, TItem>` directly.
 
 ## API

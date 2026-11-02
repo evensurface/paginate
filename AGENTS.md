@@ -3,8 +3,8 @@
 ## Project Structure & Module Organization
 
 This repository is a pnpm workspace coordinated by Turborepo. Package code lives under
-`packages/*`; the current package is `packages/pager`, with its public API rooted at
-`packages/pager/src/index.ts`. Add implementation files beside that entry point and export
+`packages/*`; the current package is `packages/paginate`, with its public API rooted at
+`packages/paginate/src/index.ts`. Add implementation files beside that entry point and export
 public symbols from it. Shared TypeScript settings are in `tsconfig.base.json`, while repository
 formatting and linting rules are in `biome.jsonc`. CI workflows live in `.github/workflows`, release
 metadata in `.changeset`, and contributor notes in `docs/`. Generated `dist/`, coverage, and

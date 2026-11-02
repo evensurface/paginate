@@ -1,5 +1,5 @@
 {
-  "name": "@seashq/pager",
+  "name": "@evensurface/paginate",
   "version": "1.0.0",
   "description": "Framework-independent, ORM-agnostic offset pagination for TypeScript.",
   "main": "./dist/index.cjs",
@@ -35,7 +35,16 @@
     "typescript",
     "orm-agnostic"
   ],
-  "author": "",
+  "author": "Evensurface",
+  "homepage": "https://evensurface.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evensurface/paginate.git",
+    "directory": "packages/paginate"
+  },
+  "bugs": {
+    "url": "https://github.com/evensurface/paginate/issues"
+  },
   "license": "MIT",
   "sideEffects": false,
   "engines": {

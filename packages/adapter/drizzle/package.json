@@ -1,7 +1,7 @@
 {
-  "name": "@seashq/pager-drizzle",
+  "name": "@evensurface/paginate-drizzle",
   "version": "1.0.0",
-  "description": "Drizzle ORM adapter for @seashq/pager.",
+  "description": "Drizzle ORM adapter for @evensurface/paginate.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -35,6 +35,16 @@
     "drizzle-orm",
     "typescript"
   ],
+  "author": "Evensurface",
+  "homepage": "https://evensurface.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evensurface/paginate.git",
+    "directory": "packages/adapter/drizzle"
+  },
+  "bugs": {
+    "url": "https://github.com/evensurface/paginate/issues"
+  },
   "license": "MIT",
   "sideEffects": false,
   "engines": {
@@ -42,7 +52,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@seashq/pager": "workspace:^"
+    "@evensurface/paginate": "workspace:^"
   },
   "peerDependencies": {
     "drizzle-orm": ">=0.45.4 <1"

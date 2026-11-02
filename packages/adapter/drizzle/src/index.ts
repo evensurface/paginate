@@ -3,7 +3,7 @@ import {
   type PaginatedResult,
   type PaginationAdapter,
   paginate as paginateCore,
-} from "@seashq/pager"
+} from "@evensurface/paginate"
 
 /** A Drizzle select query before pagination has been applied. */
 export interface DrizzleSelectQuery<TItem> {

@@ -1,6 +1,6 @@
-# @seashq/pager-drizzle
+# @evensurface/paginate-drizzle
 
-Database-only offset pagination for Drizzle ORM, powered by `@seashq/pager`.
+Database-only offset pagination for Drizzle ORM, powered by `@evensurface/paginate`.
 
 Requires Node.js 18.18 or newer.
 
@@ -11,14 +11,14 @@ abstractions.
 ## Installation
 
 ```sh
-pnpm add @seashq/pager @seashq/pager-drizzle drizzle-orm
+pnpm add @evensurface/paginate @evensurface/paginate-drizzle drizzle-orm
 ```
 
 ## Basic usage
 
 ```ts
 import { asc, desc, eq } from "drizzle-orm"
-import { paginate } from "@seashq/pager-drizzle"
+import { paginate } from "@evensurface/paginate-drizzle"
 import { db } from "./db"
 import { users } from "./schema"
 

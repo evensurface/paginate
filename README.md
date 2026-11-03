@@ -49,7 +49,7 @@ type UserFilter = { active: boolean }
 const adapter: PaginationAdapter<UserFilter, UserFilter, User> = {
   count: (filter) => database.users.count(filter),
   fetch: (filter, { limit, offset }) =>
-    database.users.findMany({ ...filter, limit, offset }),
+    database.users.findMany({ ...filter, limit, offset, orderBy: { id: "asc" } }),
 }
 
 const result = await paginate({
@@ -123,6 +123,12 @@ for API examples and customization.
 Offset pagination is a good fit for admin tables, search results, directories, and other interfaces
 where users expect numbered pages and direct navigation. For very large or rapidly changing feeds,
 cursor pagination may provide more stable performance and ordering.
+
+The tradeoff is that every paginated request performs a count before fetching rows, deep offsets
+can become increasingly expensive, and separate count/fetch operations can observe different data
+when records change concurrently. The application must also provide deterministic ordering and
+ensure the count and fetch use equivalent filters. See the package guides for the complete
+operational considerations.
 
 ## Requirements
 

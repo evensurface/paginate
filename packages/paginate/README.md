@@ -199,6 +199,40 @@ interface PaginationAdapter<TQuery, TCountQuery, TItem> {
 `paginate` executes `count` first. It resolves the requested page against the count, then calls
 `fetch` once with the resolved offset. It does not call `fetch` when the count is zero.
 
+## Tradeoffs and operational considerations
+
+Offset pagination is deliberately simple, but that simplicity has costs. Consider these points
+before using it on a high-volume or frequently changing dataset:
+
+- **Every request needs a count.** `paginate` cannot calculate the last page or complete metadata
+  without a total. Exact counts can be expensive on large or complex filtered datasets.
+- **Large offsets can become slow.** Many databases still scan or discard the rows preceding the
+  requested offset. Page `10,000` is usually more expensive than page `2`, even with the same
+  limit.
+- **Count and fetch are separate operations.** Rows can be inserted, removed, or updated between
+  them. Metadata can therefore describe a slightly different snapshot from the returned items.
+  Use a data-source transaction or snapshot when strict consistency is required.
+- **Ordering is the adapter's responsibility.** The core package cannot add or validate ordering.
+  Fetch with a deterministic order and a unique tie-breaker; otherwise items may move, repeat, or
+  disappear between pages.
+- **The count and fetch inputs must match.** The package cannot determine whether `query` and
+  `countQuery` describe the same dataset. A mismatch produces internally valid but incorrect
+  metadata.
+- **Out-of-range pages are clamped.** Requesting page `999` returns the current last page rather
+  than an empty result. This is convenient for user interfaces, but APIs that need strict page
+  validation must compare the requested page with the returned resolved page.
+- **Page-size limits only bound one fetch.** A maximum limit protects against oversized individual
+  requests, but it does not provide rate limiting, query timeouts, authorization, or database
+  resource controls.
+- **Metadata follows the count.** `firstItem` and `lastItem` are calculated from the reported total
+  and resolved offset, not by inspecting `items`. A custom adapter that returns fewer or more rows
+  than requested can make those positions inaccurate.
+
+Use offset pagination for admin tables, directories, reports, and search interfaces where numbered
+pages and direct navigation matter. Prefer a cursor-based design outside this package for very
+large, rapidly changing feeds where traversal stability and deep-page performance matter more than
+jumping to an arbitrary page.
+
 ## Build numbered pagination navigation
 
 `createPageWindow` returns page numbers and the string `"ellipsis"`, ready to map into links or
@@ -296,7 +330,8 @@ configured default; valid limits are clamped to the configured range.
 ### What happens when a requested page is too high?
 
 The page resolves to the last available page. The package counts first, calculates the resolved
-offset, and performs one fetch for that page.
+offset, and performs one fetch for that page. Compare the requested value with
+`result.pagination.page` if your API needs to report that clamping occurred.
 
 ### Does it support cursor pagination?
 

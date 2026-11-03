@@ -173,6 +173,31 @@ describe("paginate", () => {
     expect(createdQueries[1]?.offset).toHaveBeenCalledWith(2)
   })
 
+  it("keeps concurrent pagination executions isolated", async () => {
+    const users = Array.from({ length: 4 }, (_, index) => ({
+      id: index + 1,
+      name: `User ${index + 1}`,
+    }))
+    const createdQueries: ReturnType<typeof createSelectQuery<User>>[] = []
+    const createQuery = vi.fn(() => {
+      const created = createSelectQuery(users)
+      createdQueries.push(created)
+      return created.query
+    })
+    const countQuery = Promise.resolve(users.length)
+
+    const [first, second] = await Promise.all([
+      paginate({ query: createQuery, countQuery, page: 1, limit: 2 }),
+      paginate({ query: createQuery, countQuery, page: 2, limit: 2 }),
+    ])
+
+    expect(first.items).toEqual(users.slice(0, 2))
+    expect(second.items).toEqual(users.slice(2, 4))
+    expect(createQuery).toHaveBeenCalledTimes(2)
+    expect(createdQueries[0]?.offset).toHaveBeenCalledWith(0)
+    expect(createdQueries[1]?.offset).toHaveBeenCalledWith(2)
+  })
+
   it("rejects a query factory that reuses a mutated builder", async () => {
     const { query, limit } = createSelectQuery([{ id: 1, name: "Ada" }])
     const createQuery = () => query

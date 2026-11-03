@@ -281,6 +281,28 @@ caller runs both through a transaction or another database-specific consistent-s
 The adapter intentionally does not start transactions because transaction semantics belong to the
 application and database driver.
 
+## Drizzle-specific tradeoffs
+
+- **The select query must be a factory.** Drizzle mutates builders when `.limit()` and `.offset()`
+  are applied. Creating a builder is slightly more verbose, but it prevents pagination state from
+  leaking into later or concurrent executions.
+- **Exact counts may dominate request time.** A filtered count, distinct count, grouped subquery,
+  or count across joins can cost more than fetching one page. Inspect the query plan and indexes
+  for production workloads.
+- **Join cardinality is application-specific.** The adapter cannot know whether you intend to
+  count users, joined rows, or distinct entities. A valid SQL count can still be the wrong count
+  for the interface being paginated.
+- **A transaction is not automatic.** The adapter accepts existing Drizzle builders and does not
+  choose isolation levels or open a transaction. Build both queries from the same transaction
+  object when a consistent database snapshot is required.
+- **Deep pages retain normal offset costs.** The adapter does not optimize or emulate offsets.
+  Database work generally increases as the offset grows.
+- **Ordering is not enforced by the type system.** A query without `orderBy` still typechecks.
+  Always use a deterministic order with a unique final tie-breaker.
+
+These constraints are intentional: the adapter stays database-driver independent and leaves query
+planning, transactions, and entity-counting semantics with the application.
+
 ## Low-level adapter usage
 
 Most applications should import `paginate` from `@evensurface/paginate-drizzle`. For custom

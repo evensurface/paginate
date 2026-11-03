@@ -113,16 +113,22 @@ describe("paginate", () => {
     ).rejects.toBe(error)
   })
 
-  it("rejects invalid adapter counts before fetching", async () => {
-    const { adapter } = createAdapter(-1)
+  it.each([NaN, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects an invalid adapter count of %s before fetching",
+    async (total) => {
+      const adapter: PaginationAdapter<Query, string, number> = {
+        count: vi.fn(async () => total),
+        fetch: vi.fn(async () => []),
+      }
 
-    await expect(
-      paginate({
-        adapter,
-        query: { category: "books" },
-        countQuery: "books",
-      }),
-    ).rejects.toThrow("Total must be a non-negative safe integer.")
-    expect(adapter.fetch).not.toHaveBeenCalled()
-  })
+      await expect(
+        paginate({
+          adapter,
+          query: { category: "books" },
+          countQuery: "books",
+        }),
+      ).rejects.toThrow("Total must be a non-negative safe integer.")
+      expect(adapter.fetch).not.toHaveBeenCalled()
+    },
+  )
 })

@@ -12,7 +12,7 @@
     "dev": "turbo run dev",
     "format": "biome format --write .",
     "lint": "biome lint .",
-    "pack": "pnpm --filter @evensurface/paginate pack --pack-destination .artifacts",
+    "pack": "pnpm build && pnpm --filter @evensurface/paginate pack --pack-destination .artifacts && pnpm --filter @evensurface/paginate-drizzle pack --pack-destination .artifacts",
     "release": "pnpm build && changeset publish",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",

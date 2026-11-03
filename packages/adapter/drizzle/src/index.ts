@@ -15,6 +15,9 @@ export interface DrizzleLimitedQuery<TItem> {
   offset(offset: number): PromiseLike<TItem[]>
 }
 
+/** Creates a fresh Drizzle select query for one pagination execution. */
+export type DrizzleSelectQueryFactory<TItem> = () => DrizzleSelectQuery<TItem>
+
 /** The conventional result row for a Drizzle `select({ total: count() })` query. */
 export interface DrizzleCountRow {
   total: number
@@ -27,14 +30,16 @@ export type DrizzleCountResult = number | readonly DrizzleCountRow[]
 export type DrizzleCountQuery = PromiseLike<DrizzleCountResult>
 
 export interface DrizzlePaginationOptions<TItem> {
-  /** A deterministic select query. Include an `orderBy` with a unique tie-breaker. */
-  query: DrizzleSelectQuery<TItem>
+  /** Creates a deterministic select query. Include an `orderBy` with a unique tie-breaker. */
+  query: DrizzleSelectQueryFactory<TItem>
   /** A `$count()` or `select({ total: count() })` query matching `query` filters. */
   countQuery: DrizzleCountQuery
   page?: unknown
   limit?: unknown
   pageSizeOptions?: PageSizeOptions
 }
+
+const paginatedQueries = new WeakSet<object>()
 
 /**
  * Creates an adapter for Drizzle select and count query builders.
@@ -43,7 +48,7 @@ export interface DrizzlePaginationOptions<TItem> {
  * when composing directly with the core `paginate` function.
  */
 export function createDrizzleAdapter<TItem>(): PaginationAdapter<
-  DrizzleSelectQuery<TItem>,
+  DrizzleSelectQueryFactory<TItem>,
   DrizzleCountQuery,
   TItem
 > {
@@ -51,22 +56,36 @@ export function createDrizzleAdapter<TItem>(): PaginationAdapter<
     async count(query) {
       const result = await query
 
-      if (typeof result === "number") {
-        return result
+      const total = typeof result === "number" ? result : getCountTotal(result)
+
+      if (!Number.isSafeInteger(total) || total < 0) {
+        throw new RangeError("Drizzle count query must return a non-negative safe integer.")
       }
 
-      const row = result[0]
-
-      if (result.length !== 1 || !row) {
-        throw new RangeError("Drizzle count query must return exactly one row.")
-      }
-
-      return row.total
+      return total
     },
-    async fetch(query, { limit, offset }) {
+    async fetch(createQuery, { limit, offset }) {
+      const query = createQuery()
+
+      if (paginatedQueries.has(query)) {
+        throw new TypeError("Drizzle query factory must return a fresh select query.")
+      }
+
+      paginatedQueries.add(query)
+
       return query.limit(limit).offset(offset)
     },
   }
+}
+
+function getCountTotal(result: readonly DrizzleCountRow[]): number {
+  const row = result[0]
+
+  if (result.length !== 1 || !row) {
+    throw new RangeError("Drizzle count query must return exactly one row.")
+  }
+
+  return row.total
 }
 
 /**

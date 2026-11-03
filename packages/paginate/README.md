@@ -1,14 +1,26 @@
 # @evensurface/paginate
 
-Framework-independent, ORM-agnostic offset pagination for TypeScript.
+Framework-independent, ORM-agnostic offset pagination for Node.js and TypeScript.
 
-It parses page parameters, enforces page-size boundaries, calculates offsets and pagination
-metadata, generates compact page-navigation windows, and provides an adapter interface for
-database integrations.
+`@evensurface/paginate` safely parses URL pagination parameters, calculates database offsets,
+returns complete pagination metadata, and builds compact page-number navigation. Connect it to any
+database, ORM, API, or in-memory data source with a small typed adapter.
+
+## Why use it?
+
+- Accepts untrusted `page` and `limit` values directly from request inputs
+- Provides configurable page-size limits to protect APIs and databases
+- Returns one consistent, typed result shape across different data sources
+- Handles empty datasets and page numbers beyond the available range
+- Includes standalone helpers for metadata and pagination UI
+- Has no required ORM or web-framework integration
+
+This package implements **offset pagination**. It does not generate routes or UI components.
 
 ## Requirements
 
 - Node.js 18.18 or newer
+- TypeScript is recommended for type inference but is not required at runtime
 
 ## Installation
 
@@ -16,65 +28,127 @@ database integrations.
 pnpm add @evensurface/paginate
 ```
 
-## Basic usage
+```sh
+npm install @evensurface/paginate
+```
 
-Provide an adapter that knows how to count and fetch records for your data source:
+```sh
+yarn add @evensurface/paginate
+```
+
+## Quick start
+
+An adapter tells the package how to count matching records and fetch one page. Keep the filters in
+`query` and `countQuery` equivalent so the returned total describes the fetched items.
 
 ```ts
 import { paginate, type PaginationAdapter } from "@evensurface/paginate"
 
-type UserQuery = { active: boolean }
-type User = { id: number; name: string }
+type User = {
+  id: number
+  name: string
+}
 
-const adapter: PaginationAdapter<UserQuery, UserQuery, User> = {
-  async count(query) {
-    return database.users.count(query)
+type UserFilter = {
+  active: boolean
+}
+
+const userAdapter: PaginationAdapter<UserFilter, UserFilter, User> = {
+  async count(filter) {
+    return database.users.count(filter)
   },
-  async fetch(query, { limit, offset }) {
-    return database.users.findMany({ ...query, limit, offset })
+  async fetch(filter, { limit, offset }) {
+    return database.users.findMany({
+      ...filter,
+      limit,
+      offset,
+      orderBy: { id: "asc" },
+    })
   },
 }
 
 const result = await paginate({
-  adapter,
+  adapter: userAdapter,
   query: { active: true },
   countQuery: { active: true },
-  page: "2",
-  limit: "20",
+  page: request.query.page,
+  limit: request.query.limit,
 })
 ```
 
-The result matches the following shape:
+Request values may be numbers, numeric strings, missing values, or any other unknown input. You do
+not need to parse query-string values before passing them to `paginate`.
+
+## Result shape
+
+For page `2`, limit `20`, and `95` matching records, the result has this shape:
 
 ```ts
-type PaginatedUsers = {
-  items: User[]
+{
+  items: [/* User[] */],
   pagination: {
-    page: number
-    limit: number
-    offset: number
-    total: number
-    totalPages: number
-    hasNextPage: boolean
-    hasPreviousPage: boolean
-    firstItem: number
-    lastItem: number
-  }
+    page: 2,
+    limit: 20,
+    offset: 20,
+    total: 95,
+    totalPages: 5,
+    hasNextPage: true,
+    hasPreviousPage: true,
+    firstItem: 21,
+    lastItem: 40,
+  },
 }
 ```
 
-Invalid page values fall back to page 1. Invalid limits fall back to 20, and valid limits are
-clamped between 1 and 100 by default. Pages beyond the available range resolve to the last page.
+Use the fields directly in an API response or pagination interface:
 
-## Page-size configuration
+```ts
+return Response.json(result)
+```
 
-Override the default page-size boundaries per request:
+```ts
+const summary = `Showing ${result.pagination.firstItem}–${result.pagination.lastItem} of ${result.pagination.total}`
+```
+
+### Pagination metadata
+
+| Field | Meaning |
+| --- | --- |
+| `page` | Resolved current page, starting at `1` |
+| `limit` | Items requested per page after defaults and boundaries are applied |
+| `offset` | Zero-based offset to use when fetching records |
+| `total` | Total number of matching records |
+| `totalPages` | Number of available pages; `0` for an empty dataset |
+| `hasNextPage` | Whether a page exists after the current page |
+| `hasPreviousPage` | Whether a page exists before the current page |
+| `firstItem` | One-based position of the first returned item; `0` when empty |
+| `lastItem` | One-based position of the last possible item on the page; `0` when empty |
+
+## Input behavior and defaults
+
+| Input | Result |
+| --- | --- |
+| `page: undefined`, `0`, `-1`, `"abc"`, or a fraction | Page `1` |
+| `page: "3"` | Page `3` |
+| `limit: undefined`, `0`, `-1`, `"abc"`, or a fraction | Default limit `20` |
+| `limit: "25"` | Limit `25` |
+| `limit: 500` | Maximum default limit `100` |
+| A page beyond `totalPages` | The last available page |
+| No matching records | Page `1`, zero total pages, zero item positions, and no fetch call |
+
+Only positive safe integers or strings containing positive integers are accepted as valid page and
+limit inputs.
+
+## Configure page sizes
+
+The defaults are `20` items per page, with an allowed range of `1` through `100`. Override them for
+an individual pagination call:
 
 ```ts
 const result = await paginate({
-  adapter,
-  query,
-  countQuery,
+  adapter: userAdapter,
+  query: { active: true },
+  countQuery: { active: true },
   page,
   limit,
   pageSizeOptions: {
@@ -85,44 +159,155 @@ const result = await paginate({
 })
 ```
 
-## Parsing and metadata utilities
+`defaultLimit` must fall between `minLimit` and `maxLimit`. Invalid configuration throws a
+`RangeError` so configuration mistakes are caught instead of silently accepted.
 
-The core utilities can also be used independently:
+## Create a pagination adapter
+
+Use separate query types when your data source needs different inputs for counting and fetching:
+
+```ts
+import { type PaginationAdapter, paginate } from "@evensurface/paginate"
+
+type ItemQuery = { category: string; sort: "newest" | "oldest" }
+type CountQuery = { category: string }
+type Item = { id: string; title: string }
+
+const adapter: PaginationAdapter<ItemQuery, CountQuery, Item> = {
+  count: (query) => countItems(query.category),
+  fetch: (query, pagination) => fetchItems({ ...query, ...pagination }),
+}
+
+const result = await paginate({
+  adapter,
+  query: { category: "books", sort: "newest" },
+  countQuery: { category: "books" },
+  page: "3",
+  limit: "10",
+})
+```
+
+The adapter contract is intentionally small:
+
+```ts
+interface PaginationAdapter<TQuery, TCountQuery, TItem> {
+  count(query: TCountQuery): Promise<number>
+  fetch(query: TQuery, options: { limit: number; offset: number }): Promise<TItem[]>
+}
+```
+
+`paginate` executes `count` first. It resolves the requested page against the count, then calls
+`fetch` once with the resolved offset. It does not call `fetch` when the count is zero.
+
+## Build numbered pagination navigation
+
+`createPageWindow` returns page numbers and the string `"ellipsis"`, ready to map into links or
+buttons:
+
+```ts
+import { createPageWindow } from "@evensurface/paginate"
+
+const pages = createPageWindow({
+  page: 5,
+  totalPages: 20,
+})
+
+// [1, "ellipsis", 4, 5, 6, "ellipsis", 20]
+```
+
+Customize how many pages appear beside the current page and at both boundaries:
+
+```ts
+createPageWindow({
+  page: 10,
+  totalPages: 30,
+  siblings: 2,
+  boundaries: 2,
+})
+
+// [1, 2, "ellipsis", 8, 9, 10, 11, 12, "ellipsis", 29, 30]
+```
+
+An empty dataset returns an empty array. A requested page beyond the range is resolved before the
+window is created.
+
+## Use the utilities independently
+
+You can parse request inputs and create metadata without the adapter-based `paginate` function:
 
 ```ts
 import {
   calculateOffset,
-  createPageWindow,
   createPaginationMetadata,
   parseLimit,
   parsePage,
+  resolvePage,
 } from "@evensurface/paginate"
 
-const page = parsePage(request.query.page)
-const limit = parseLimit(request.query.limit)
-const offset = calculateOffset(page, limit)
+const requestedPage = parsePage(request.query.page)
+const limit = parseLimit(request.query.limit, { maxLimit: 50 })
 
-const pagination = createPaginationMetadata({ page, limit, total: 95 })
-const navigation = createPageWindow({ page: pagination.page, totalPages: pagination.totalPages })
+// If you already know the total:
+const pagination = createPaginationMetadata({
+  page: requestedPage,
+  limit,
+  total: 95,
+})
+
+// Or for lower-level pagination logic:
+const page = resolvePage(requestedPage, 5)
+const offset = calculateOffset(page, limit)
 ```
 
-`createPageWindow` returns page numbers and the literal `"ellipsis"` for omitted ranges.
+### Utility reference
 
-## ORM adapters
+| Export | Purpose |
+| --- | --- |
+| `parsePage(value)` | Converts unknown input to a positive page number, defaulting to `1` |
+| `parseLimit(value, options?)` | Converts unknown input to a bounded page size |
+| `calculateOffset(page, limit)` | Calculates `(page - 1) * limit` with safe-integer validation |
+| `resolvePage(page, totalPages)` | Clamps a page to the available range |
+| `createPaginationMetadata(options)` | Creates all metadata fields from page, limit, and total |
+| `createPageWindow(options)` | Creates compact page-number navigation |
 
-Use `@evensurface/paginate-drizzle` for Drizzle ORM queries. Custom integrations can implement
-`PaginationAdapter<TQuery, TCountQuery, TItem>` directly.
+The package also exports `DEFAULT_PAGE_SIZE`, `MIN_PAGE_SIZE`, and `MAX_PAGE_SIZE`, plus all public
+TypeScript types.
 
-## API
+## ORM integrations
 
-The package exports:
+Using Drizzle ORM? Install [`@evensurface/paginate-drizzle`](../adapter/drizzle/README.md) for
+automatic query execution and inferred select types.
 
-- `paginate`
-- `parsePage` and `parseLimit`
-- `calculateOffset` and `resolvePage`
-- `createPaginationMetadata` and `createPageWindow`
-- `DEFAULT_PAGE_SIZE`, `MIN_PAGE_SIZE`, and `MAX_PAGE_SIZE`
-- the TypeScript types needed to implement pagination adapters
+Other ORMs and databases can integrate through `PaginationAdapter`; no ORM-specific dependency is
+required by this package.
+
+## Frequently asked questions
+
+### Does it work with Express, Fastify, Hono, Next.js, or another framework?
+
+Yes. The library has no routing or framework dependency. Pass the framework's query-parameter
+values as `page` and `limit`, then return or render the result.
+
+### Does it sanitize query-string pagination values?
+
+It validates them for pagination use. Invalid page values become `1`; invalid limit values use the
+configured default; valid limits are clamped to the configured range.
+
+### What happens when a requested page is too high?
+
+The page resolves to the last available page. The package counts first, calculates the resolved
+offset, and performs one fetch for that page.
+
+### Does it support cursor pagination?
+
+No. This package is specifically for offset pagination with numbered pages. Cursor pagination is
+usually a better fit for large, frequently changing feeds where stable traversal matters more than
+direct page navigation.
+
+### Must the count and fetch queries have the same filters?
+
+Yes. They may use different query types, but they must describe the same result set. Otherwise the
+total and page metadata will not match the fetched items.
 
 ## License
 

@@ -1,6 +1,6 @@
 {
   "name": "@evensurface/paginate-drizzle",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Type-safe offset pagination for Drizzle ORM with inferred rows, count queries, and complete pagination metadata.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",

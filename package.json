@@ -13,9 +13,12 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "pack": "pnpm build && pnpm --filter @evensurface/paginate pack --pack-destination .artifacts && pnpm --filter @evensurface/paginate-drizzle pack --pack-destination .artifacts",
-    "release": "pnpm build && changeset publish",
+    "pack:dry-run": "pnpm --filter @evensurface/paginate pack --dry-run && pnpm --filter @evensurface/paginate-drizzle pack --dry-run",
+    "publish:check": "pnpm validate && pnpm pack:dry-run",
+    "release": "pnpm publish:check && changeset publish",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
+    "validate": "pnpm check && pnpm typecheck && pnpm test && pnpm build",
     "version-packages": "changeset version"
   },
   "keywords": [

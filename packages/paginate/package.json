@@ -1,7 +1,7 @@
 {
   "name": "@evensurface/paginate",
   "version": "1.0.0",
-  "description": "Framework-independent, ORM-agnostic offset pagination for TypeScript.",
+  "description": "Type-safe, framework-independent offset pagination for TypeScript, Node.js, APIs, databases, and any ORM.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -25,18 +25,39 @@
   },
   "scripts": {
     "build": "tsdown src/index.ts --dts --clean --format esm,cjs --target es2022 --tsconfig tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "check:fix": "biome check --write .",
     "dev": "tsdown src/index.ts --dts --watch --format esm,cjs --target es2022 --tsconfig tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "prepack": "pnpm run build",
+    "prepublishOnly": "pnpm run publish:check",
+    "publish:check": "pnpm run check && pnpm pack --dry-run",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "keywords": [
+    "paginate",
+    "paginator",
     "pagination",
     "offset-pagination",
+    "page-number-pagination",
+    "api-pagination",
+    "database-pagination",
+    "pagination-library",
     "typescript",
+    "javascript",
+    "nodejs",
+    "database",
+    "orm",
     "orm-agnostic"
   ],
-  "author": "Evensurface",
-  "homepage": "https://evensurface.com",
+  "author": {
+    "name": "Shivam Gupta",
+    "url": "https://github.com/shivamrun"
+  },
+  "homepage": "https://github.com/evensurface/paginate/tree/main/packages/paginate#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/evensurface/paginate.git",

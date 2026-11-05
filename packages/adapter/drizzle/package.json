@@ -1,7 +1,7 @@
 {
   "name": "@evensurface/paginate-drizzle",
   "version": "1.0.0",
-  "description": "Drizzle ORM adapter for @evensurface/paginate.",
+  "description": "Type-safe offset pagination for Drizzle ORM with inferred rows, count queries, and complete pagination metadata.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -25,18 +25,40 @@
   },
   "scripts": {
     "build": "tsdown src/index.ts --dts --clean --format esm,cjs --target es2022 --tsconfig tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "check:fix": "biome check --write .",
     "dev": "tsdown src/index.ts --dts --watch --format esm,cjs --target es2022 --tsconfig tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "prepack": "pnpm run build",
+    "prepublishOnly": "pnpm run publish:check",
+    "publish:check": "pnpm run check && pnpm pack --dry-run",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "keywords": [
-    "pagination",
+    "drizzle-pagination",
     "drizzle",
     "drizzle-orm",
-    "typescript"
+    "paginate",
+    "paginator",
+    "pagination",
+    "offset-pagination",
+    "api-pagination",
+    "database-pagination",
+    "typescript",
+    "sql",
+    "database",
+    "postgresql",
+    "mysql",
+    "sqlite"
   ],
-  "author": "Evensurface",
-  "homepage": "https://evensurface.com",
+  "author": {
+    "name": "Shivam Gupta",
+    "url": "https://github.com/shivamrun"
+  },
+  "homepage": "https://github.com/evensurface/paginate/tree/main/packages/adapter/drizzle#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/evensurface/paginate.git",

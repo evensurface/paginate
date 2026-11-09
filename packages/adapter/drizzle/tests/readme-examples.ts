@@ -46,9 +46,9 @@ export function handleDrizzlePaginationError(error: unknown): never {
 
 /** Compile-checked counterparts of the public Drizzle README examples. */
 export async function compileDrizzleReadmeExamples(
-  page: unknown,
-  offset: unknown,
-  limit: unknown,
+  page: string | number | undefined,
+  offset: string | number | undefined,
+  limit: string | number | undefined,
   search?: string,
 ) {
   const where = eq(users.active, true)

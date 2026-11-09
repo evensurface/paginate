@@ -20,6 +20,7 @@ export interface OffsetPaginationMetadata {
 
 export type PaginationPageItem = number | "ellipsis"
 
+import type { PaginationInput } from "./integer"
 import type { PageSizeOptions } from "./page"
 
 export interface PaginationAdapter<TQuery, TCountQuery, TItem> {
@@ -34,8 +35,8 @@ export interface PaginationOptions<TQuery, TCountQuery, TItem> {
   query: TQuery
   countQuery: TCountQuery
 
-  page?: unknown
-  limit?: unknown
+  page?: PaginationInput
+  limit?: PaginationInput
   pageSizeOptions?: PageSizeOptions
 }
 
@@ -45,8 +46,8 @@ export interface OffsetPaginationOptions<TQuery, TCountQuery, TItem> {
   query: TQuery
   countQuery: TCountQuery
 
-  offset?: unknown
-  limit?: unknown
+  offset?: PaginationInput
+  limit?: PaginationInput
   pageSizeOptions?: PageSizeOptions
 }
 

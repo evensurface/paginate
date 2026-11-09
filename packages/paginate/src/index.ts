@@ -1,5 +1,6 @@
 export type { PaginationError, PaginationErrorCode } from "./core/errors"
 export { isPaginationError } from "./core/errors"
+export type { PaginationInput } from "./core/integer"
 export type {
   OffsetPaginationMetadataOptions,
   PageWindowOptions,

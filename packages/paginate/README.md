@@ -82,8 +82,9 @@ const result = await paginate({
 })
 ```
 
-Request values may be numbers, numeric strings, missing values, or any other unknown input. You do
-not need to parse query-string values before passing them to `paginate`.
+Request values may be numbers, numeric strings, or missing values. You do not need to parse
+query-string values before passing them to `paginate`. Runtime validation remains defensive for
+untyped JavaScript callers and invalid values use the documented fallbacks.
 
 ### Use a native offset
 
@@ -392,9 +393,9 @@ const offset = calculateOffset(page, limit)
 
 | Export | Purpose |
 | --- | --- |
-| `parsePage(value)` | Converts unknown input to a positive page number, defaulting to `1` |
-| `parseOffset(value)` | Converts unknown input to a non-negative offset, defaulting to `0` |
-| `parseLimit(value, options?)` | Converts unknown input to a bounded page size |
+| `parsePage(value)` | Converts a string or number to a positive page number, defaulting to `1` |
+| `parseOffset(value)` | Converts a string or number to a non-negative offset, defaulting to `0` |
+| `parseLimit(value, options?)` | Converts a string or number to a bounded page size |
 | `calculateOffset(page, limit)` | Calculates `(page - 1) * limit` with safe-integer validation |
 | `resolvePage(page, totalPages)` | Clamps a page to the available range |
 | `createPaginationMetadata(options)` | Creates all metadata fields from page, limit, and total |

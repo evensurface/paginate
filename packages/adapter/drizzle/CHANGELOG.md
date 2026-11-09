@@ -1,5 +1,17 @@
 # @evensurface/paginate-drizzle
 
+## 2.0.0
+
+### Major Changes
+
+- Narrow the public page, offset, and limit input types to strings and numbers while preserving the
+  existing runtime parsing and fallback behavior.
+
+### Patch Changes
+
+- Updated dependencies
+  - @evensurface/paginate@2.0.0
+
 ## 1.2.0
 
 ### Minor Changes

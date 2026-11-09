@@ -1,5 +1,5 @@
 import { annotatePaginationError, getPaginationErrorMessage } from "./errors"
-import { isPositiveSafeInteger, toPositiveSafeInteger } from "./integer"
+import { isPositiveSafeInteger, type PaginationInput, toPositiveSafeInteger } from "./integer"
 
 /**
  * Default pagination configuration.
@@ -18,7 +18,7 @@ export interface PageSizeOptions {
 }
 
 /**
- * Parses a page number from an unknown value.
+ * Parses a page number from a number or numeric string.
  *
  * Invalid, missing, zero, negative, fractional, or unsafe
  * values fall back to page 1.
@@ -28,8 +28,8 @@ export interface PageSizeOptions {
  * parsePage(5)       // 5
  * parsePage("-2")    // 1
  * parsePage("abc")   // 1
- * parsePage(null)    // 1
  */
+export function parsePage(value?: PaginationInput): number
 export function parsePage(value: unknown): number {
   return toPositiveSafeInteger(value) ?? 1
 }
@@ -48,6 +48,7 @@ export function parsePage(value: unknown): number {
  * parseLimit(5, { minLimit: 10 })        // 10
  * parseLimit(50, { maxLimit: 30 })       // 30
  */
+export function parseLimit(value?: PaginationInput, options?: PageSizeOptions): number
 export function parseLimit(value: unknown, options: PageSizeOptions = {}): number {
   const {
     defaultLimit = DEFAULT_PAGE_SIZE,

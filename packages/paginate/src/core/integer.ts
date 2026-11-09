@@ -1,3 +1,6 @@
+/** A supported untrusted pagination value before parsing and normalization. */
+export type PaginationInput = string | number
+
 /** Checks whether a value is a positive, safe integer. */
 export function isPositiveSafeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0

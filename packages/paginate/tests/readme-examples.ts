@@ -65,9 +65,9 @@ const userAdapter: PaginationAdapter<UserFilter, UserFilter, User> = {
 
 /** Compile-checked counterparts of the public core README examples. */
 export async function compileCoreReadmeExamples(
-  pageInput: unknown,
-  offsetInput: unknown,
-  limitInput: unknown,
+  pageInput: string | number | undefined,
+  offsetInput: string | number | undefined,
+  limitInput: string | number | undefined,
 ) {
   const result = await paginate({
     adapter: userAdapter,

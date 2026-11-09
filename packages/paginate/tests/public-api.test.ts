@@ -8,6 +8,7 @@ import type {
   PaginationAdapter,
   PaginationError,
   PaginationErrorCode,
+  PaginationInput,
   PaginationMetadata,
   PaginationOptions,
   PaginationPageItem,
@@ -36,6 +37,10 @@ describe("public API", () => {
 
   it("preserves the public type contracts", () => {
     expectTypeOf<PaginationMetadata["page"]>().toEqualTypeOf<number>()
+    expectTypeOf<PaginationInput>().toEqualTypeOf<string | number>()
+    expectTypeOf<PaginationOptions<string, number, boolean>["page"]>().toEqualTypeOf<
+      string | number | undefined
+    >()
     expectTypeOf<PaginationPageItem>().toEqualTypeOf<number | "ellipsis">()
     expectTypeOf<PaginatedResult<string>["items"]>().toEqualTypeOf<string[]>()
     expectTypeOf<PaginationOptions<string, number, boolean>["adapter"]>().toEqualTypeOf<

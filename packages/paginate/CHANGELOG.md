@@ -1,5 +1,12 @@
 # @evensurface/paginate
 
+## 2.0.0
+
+### Major Changes
+
+- Narrow the public page, offset, and limit input types to strings and numbers while preserving the
+  existing runtime parsing and fallback behavior.
+
 ## 1.2.0
 
 ### Minor Changes

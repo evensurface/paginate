@@ -394,8 +394,8 @@ and joined result shapes.
 
 ### Can I pass URL query parameters directly?
 
-Yes. `page`, `offset`, and `limit` accept unknown input. Numeric strings are parsed, invalid pages
-fall back to `1`, invalid offsets fall back to `0`, and invalid limits use the configured default.
+Yes. `page`, `offset`, and `limit` accept strings or numbers. Numeric strings are parsed, invalid
+values still use the same runtime fallbacks: page `1`, offset `0`, or the configured default limit.
 
 ### Why does pagination need a separate count query?
 

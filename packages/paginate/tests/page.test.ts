@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 import { calculateOffset, parseLimit, parsePage, resolvePage } from "../src/core/page"
 
+const parsePageRuntime = parsePage as (value: unknown) => number
+const parseLimitRuntime = parseLimit as (value: unknown) => number
+
 describe("parsePage", () => {
   it.each([
     [undefined, 1],
@@ -14,7 +17,7 @@ describe("parsePage", () => {
     [" 3 ", 3],
     [4, 4],
   ])("parses %j as %d", (input, expected) => {
-    expect(parsePage(input)).toBe(expected)
+    expect(parsePageRuntime(input)).toBe(expected)
   })
 
   it("rejects integers outside the safe range", () => {
@@ -46,7 +49,7 @@ describe("parsePage", () => {
     "0x10",
     "-1",
   ])("falls back for the unsupported value %s", (input) => {
-    expect(parsePage(input)).toBe(1)
+    expect(parsePageRuntime(input)).toBe(1)
   })
 })
 
@@ -62,7 +65,7 @@ describe("parseLimit", () => {
     expect(parseLimit(0)).toBe(20)
     expect(parseLimit("abc")).toBe(20)
     expect(parseLimit("1e2")).toBe(20)
-    expect(parseLimit(1n)).toBe(20)
+    expect(parseLimitRuntime(1n)).toBe(20)
   })
 
   it("parses before clamping valid numeric strings", () => {

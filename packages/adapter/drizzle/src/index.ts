@@ -3,6 +3,7 @@ import {
   type PageSizeOptions,
   type PaginatedResult,
   type PaginationAdapter,
+  type PaginationInput,
   paginate as paginateCore,
   paginateOffset as paginateOffsetCore,
 } from "@evensurface/paginate"
@@ -40,8 +41,8 @@ export interface DrizzlePaginationOptions<TItem> {
   query: DrizzleSelectQueryFactory<TItem>
   /** A `$count()` or `select({ total: count() })` query matching `query` filters. */
   countQuery: DrizzleCountQuery
-  page?: unknown
-  limit?: unknown
+  page?: PaginationInput
+  limit?: PaginationInput
   pageSizeOptions?: PageSizeOptions
 }
 
@@ -50,8 +51,8 @@ export interface DrizzleOffsetPaginationOptions<TItem> {
   query: DrizzleSelectQueryFactory<TItem>
   /** A `$count()` or `select({ total: count() })` query matching `query` filters. */
   countQuery: DrizzleCountQuery
-  offset?: unknown
-  limit?: unknown
+  offset?: PaginationInput
+  limit?: PaginationInput
   pageSizeOptions?: PageSizeOptions
 }
 

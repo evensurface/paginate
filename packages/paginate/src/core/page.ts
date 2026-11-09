@@ -1,3 +1,5 @@
+import { isPositiveSafeInteger, toPositiveSafeInteger } from "./integer"
+
 /**
  * Default pagination configuration.
  */
@@ -15,38 +17,6 @@ export interface PageSizeOptions {
 }
 
 /**
- * Checks whether a value is a positive, safe integer.
- */
-function isPositiveInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
-}
-
-/**
- * Converts a number or numeric string into a positive integer.
- *
- * Returns undefined for invalid values.
- */
-function toPositiveInteger(value: unknown): number | undefined {
-  if (isPositiveInteger(value)) {
-    return value
-  }
-
-  if (typeof value !== "string") {
-    return undefined
-  }
-
-  const normalized = value.trim()
-
-  if (!/^\d+$/.test(normalized)) {
-    return undefined
-  }
-
-  const parsed = Number(normalized)
-
-  return isPositiveInteger(parsed) ? parsed : undefined
-}
-
-/**
  * Parses a page number from an unknown value.
  *
  * Invalid, missing, zero, negative, fractional, or unsafe
@@ -60,7 +30,7 @@ function toPositiveInteger(value: unknown): number | undefined {
  * parsePage(null)    // 1
  */
 export function parsePage(value: unknown): number {
-  return toPositiveInteger(value) ?? 1
+  return toPositiveSafeInteger(value) ?? 1
 }
 
 /**
@@ -84,15 +54,15 @@ export function parseLimit(value: unknown, options: PageSizeOptions = {}): numbe
     maxLimit = MAX_PAGE_SIZE,
   } = options
 
-  if (!isPositiveInteger(minLimit) || !isPositiveInteger(maxLimit) || minLimit > maxLimit) {
+  if (!isPositiveSafeInteger(minLimit) || !isPositiveSafeInteger(maxLimit) || minLimit > maxLimit) {
     throw new RangeError("Invalid page size boundaries.")
   }
 
-  if (!isPositiveInteger(defaultLimit) || defaultLimit < minLimit || defaultLimit > maxLimit) {
+  if (!isPositiveSafeInteger(defaultLimit) || defaultLimit < minLimit || defaultLimit > maxLimit) {
     throw new RangeError("Default page size must be within the allowed range.")
   }
 
-  const limit = toPositiveInteger(value) ?? defaultLimit
+  const limit = toPositiveSafeInteger(value) ?? defaultLimit
 
   return Math.min(Math.max(limit, minLimit), maxLimit)
 }
@@ -110,11 +80,11 @@ export function parseLimit(value: unknown, options: PageSizeOptions = {}): numbe
  * calculateOffset(5, 10) // 40
  */
 export function calculateOffset(page: number, limit: number): number {
-  if (!isPositiveInteger(page)) {
+  if (!isPositiveSafeInteger(page)) {
     throw new RangeError("Page must be a positive safe integer.")
   }
 
-  if (!isPositiveInteger(limit)) {
+  if (!isPositiveSafeInteger(limit)) {
     throw new RangeError("Limit must be a positive safe integer.")
   }
 
@@ -140,7 +110,7 @@ export function calculateOffset(page: number, limit: number): number {
  * resolvePage(5, 0)    // 1
  */
 export function resolvePage(page: number, totalPages: number): number {
-  if (!isPositiveInteger(page)) {
+  if (!isPositiveSafeInteger(page)) {
     throw new RangeError("Page must be a positive safe integer.")
   }
 

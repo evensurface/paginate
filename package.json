@@ -18,7 +18,8 @@
     "release": "pnpm publish:check && changeset publish",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "validate": "pnpm check && pnpm typecheck && pnpm test && pnpm build",
+    "validate": "pnpm check && pnpm typecheck && pnpm test && pnpm build && pnpm verify:exports",
+    "verify:exports": "node scripts/verify-package-exports.mjs",
     "version-packages": "changeset version"
   },
   "keywords": [

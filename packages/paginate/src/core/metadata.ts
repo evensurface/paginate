@@ -1,3 +1,4 @@
+import { isNonNegativeSafeInteger } from "./integer"
 import { calculateOffset, resolvePage } from "./page"
 import type { PaginationMetadata, PaginationPageItem } from "./types"
 
@@ -32,7 +33,7 @@ export function createPaginationMetadata({
   limit,
   total,
 }: PaginationMetadataOptions): PaginationMetadata {
-  if (!Number.isSafeInteger(total) || total < 0) {
+  if (!isNonNegativeSafeInteger(total)) {
     throw new RangeError("Total must be a non-negative safe integer.")
   }
 
@@ -85,7 +86,7 @@ export function createPageWindow({
   siblings = 1,
   boundaries = 1,
 }: PageWindowOptions): PaginationPageItem[] {
-  if (!Number.isSafeInteger(totalPages) || totalPages < 0) {
+  if (!isNonNegativeSafeInteger(totalPages)) {
     throw new RangeError("Total pages must be a non-negative safe integer.")
   }
 

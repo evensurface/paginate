@@ -25,6 +25,11 @@ function createSelectQuery<TItem>(items: TItem[]) {
 }
 
 describe("createDrizzleAdapter", () => {
+  it("exposes the existing runtime surface only", async () => {
+    const api = await import("../src/index")
+    expect(Object.keys(api).sort()).toEqual(["createDrizzleAdapter", "paginate"])
+  })
+
   it("applies the limit and offset to a Drizzle-shaped query", async () => {
     const { query, limit, offset } = createSelectQuery([
       { id: 1, name: "Ada" },
@@ -50,6 +55,13 @@ describe("createDrizzleAdapter", () => {
     const adapter = createDrizzleAdapter<User>()
 
     await expect(adapter.count(Promise.resolve([{ total: 42 }]))).resolves.toBe(42)
+  })
+
+  it("propagates count-query failures without wrapping", async () => {
+    const error = new Error("count failed")
+    const adapter = createDrizzleAdapter<User>()
+
+    await expect(adapter.count(Promise.reject(error))).rejects.toBe(error)
   })
 
   it.each([NaN, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
@@ -85,6 +97,55 @@ describe("createDrizzleAdapter", () => {
     await expect(adapter.count(Promise.resolve([{ total: 10 }, { total: 20 }]))).rejects.toThrow(
       "Drizzle count query must return exactly one row.",
     )
+  })
+
+  it("preserves Drizzle count error classes", async () => {
+    const adapter = createDrizzleAdapter<User>()
+
+    await expect(adapter.count(Promise.resolve([]))).rejects.toThrow(RangeError)
+    await expect(adapter.count(Promise.resolve(-1))).rejects.toThrow(RangeError)
+  })
+
+  it("propagates query factory and builder failures without wrapping", async () => {
+    const adapter = createDrizzleAdapter<User>()
+    const factoryError = new Error("factory failed")
+    const limitError = new Error("limit failed")
+    const offsetError = new Error("offset failed")
+
+    await expect(
+      adapter.fetch(
+        () => {
+          throw factoryError
+        },
+        { limit: 1, offset: 0 },
+      ),
+    ).rejects.toBe(factoryError)
+
+    await expect(
+      adapter.fetch(
+        () => ({
+          limit() {
+            throw limitError
+          },
+        }),
+        { limit: 1, offset: 0 },
+      ),
+    ).rejects.toBe(limitError)
+
+    await expect(
+      adapter.fetch(
+        () => ({
+          limit() {
+            return {
+              offset() {
+                throw offsetError
+              },
+            }
+          },
+        }),
+        { limit: 1, offset: 0 },
+      ),
+    ).rejects.toBe(offsetError)
   })
 })
 
@@ -127,6 +188,21 @@ describe("paginate", () => {
     expect(result.pagination).toMatchObject({ page: 1, offset: 0, total: 0, totalPages: 0 })
     expect(limit).not.toHaveBeenCalled()
     expect(offset).not.toHaveBeenCalled()
+  })
+
+  it("validates configuration before awaiting the count query", async () => {
+    const then = vi.fn()
+    const createQuery = vi.fn(() => createSelectQuery<User>([]).query)
+
+    await expect(
+      paginate({
+        query: createQuery,
+        countQuery: { then },
+        pageSizeOptions: { minLimit: 20, maxLimit: 10 },
+      }),
+    ).rejects.toThrow("Invalid page size boundaries.")
+    expect(then).not.toHaveBeenCalled()
+    expect(createQuery).not.toHaveBeenCalled()
   })
 
   it("fetches the resolved last page once for an out-of-range request", async () => {

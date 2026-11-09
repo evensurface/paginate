@@ -113,6 +113,37 @@ describe("paginate", () => {
     ).rejects.toBe(error)
   })
 
+  it("validates page-size configuration before counting", async () => {
+    const { adapter } = createAdapter(1)
+
+    await expect(
+      paginate({
+        adapter,
+        query: { category: "books" },
+        countQuery: "books",
+        pageSizeOptions: { minLimit: 20, maxLimit: 10 },
+      }),
+    ).rejects.toThrow("Invalid page size boundaries.")
+    expect(adapter.count).not.toHaveBeenCalled()
+    expect(adapter.fetch).not.toHaveBeenCalled()
+  })
+
+  it("returns the adapter item array unchanged", async () => {
+    const items = [{ id: 1 }]
+    const adapter: PaginationAdapter<Query, string, { id: number }> = {
+      count: vi.fn(async () => 1),
+      fetch: vi.fn(async () => items),
+    }
+
+    const result = await paginate({
+      adapter,
+      query: { category: "books" },
+      countQuery: "books",
+    })
+
+    expect(result.items).toBe(items)
+  })
+
   it.each([NaN, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
     "rejects an invalid adapter count of %s before fetching",
     async (total) => {
@@ -121,13 +152,15 @@ describe("paginate", () => {
         fetch: vi.fn(async () => []),
       }
 
-      await expect(
-        paginate({
-          adapter,
-          query: { category: "books" },
-          countQuery: "books",
-        }),
-      ).rejects.toThrow("Total must be a non-negative safe integer.")
+      const result = paginate({
+        adapter,
+        query: { category: "books" },
+        countQuery: "books",
+      })
+
+      await expect(result).rejects.toThrow(RangeError)
+      await expect(result).rejects.toThrow("Total must be a non-negative safe integer.")
+      expect(adapter.count).toHaveBeenCalledOnce()
       expect(adapter.fetch).not.toHaveBeenCalled()
     },
   )

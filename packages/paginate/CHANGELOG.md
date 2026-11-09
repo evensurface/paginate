@@ -1,5 +1,12 @@
 # @evensurface/paginate
 
+## 1.2.0
+
+### Minor Changes
+
+- 27da36d: Add native `offset + limit` pagination with shared counted-offset execution, focused parsing and
+  metadata utilities, and a type-safe Drizzle wrapper.
+
 ## 1.1.0
 
 ### Minor Changes

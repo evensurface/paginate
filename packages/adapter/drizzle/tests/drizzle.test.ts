@@ -29,8 +29,10 @@ describe("createDrizzleAdapter", () => {
     const api = await import("../src/index")
     expect(Object.keys(api).sort()).toEqual([
       "createDrizzleAdapter",
+      "createDrizzleCursorAdapter",
       "isDrizzlePaginationError",
       "paginate",
+      "paginateCursor",
       "paginateOffset",
     ])
   })

@@ -1,8 +1,7 @@
 # @evensurface/paginate-drizzle — Drizzle ORM Pagination for TypeScript
 
-`@evensurface/paginate-drizzle` adds type-safe, database-only offset pagination to Drizzle ORM. It
-applies `limit` and `offset` to a Drizzle select query, runs a matching count query, and returns the
-selected rows with complete pagination metadata.
+`@evensurface/paginate-drizzle` adds type-safe page, offset, and keyset cursor pagination to
+Drizzle ORM. Cursor mode performs one count-free select with a portable lexicographic predicate.
 
 Use it for paginated API endpoints, admin tables, search results, and server-rendered lists built
 with Drizzle ORM and Node.js.
@@ -15,6 +14,7 @@ with Drizzle ORM and Node.js.
 - Configurable minimum, default, and maximum page sizes
 - Totals, page counts, offsets, item ranges, and next/previous flags
 - One select execution per non-empty page and no select execution for empty results
+- Forward-only cursor pagination with inferred rows and no count query
 
 This package provides database pagination only. It does not create routes, services, or UI
 components.
@@ -118,6 +118,71 @@ The result contains `total`, `limit`, `offset`, `hasNextPage`, and `hasPreviousP
 offsets are preserved. When the offset is at or beyond the count, the count query still executes
 but the select-query factory is not called.
 
+### Use native cursor pagination
+
+Cursor mode derives its predicate and ordering from one compound configuration. The query callback
+must combine `cursorWhere` with application filters and apply the supplied `orderBy` expressions:
+
+```ts
+import { and, eq } from "drizzle-orm"
+import { paginateCursor } from "@evensurface/paginate-drizzle"
+
+const result = await paginateCursor({
+  query: ({ cursorWhere, orderBy }) =>
+    db
+      .select({ id: users.id, name: users.name, createdAt: users.createdAt })
+      .from(users)
+      .where(and(eq(users.active, true), cursorWhere))
+      .orderBy(...orderBy),
+  orderBy: [
+    {
+      key: "createdAt",
+      column: users.createdAt,
+      direction: "desc",
+      getValue: (user) => user.createdAt,
+    },
+    {
+      key: "id",
+      column: users.id,
+      direction: "desc",
+      getValue: (user) => user.id,
+    },
+  ],
+  cursor: request.query.cursor,
+  limit: request.query.limit,
+})
+```
+
+Pass `result.pagination.nextCursor` to the next request. The result includes `limit`,
+`nextCursor`, and `hasNextPage`; it intentionally has no total, offset, or previous cursor.
+
+The last order entry must make the complete tuple unique. All cursor columns must be non-null and
+should be immutable. The adapter supports mixed directions and expands compound continuation into
+portable `and`/`or`/`eq`/`gt`/`lt` expressions for PostgreSQL, MySQL, and SQLite. It does not use
+tuple comparisons, raw dialect SQL, offsets, or count queries.
+
+The column and `getValue` return type are checked together. For a Drizzle `customType` column, also
+set `valueType` to `"string"`, `"number"`, `"bigint"`, or `"date"` so runtime cursor validation can
+identify its representation:
+
+```ts
+{
+  key: "token",
+  column: users.token,
+  direction: "asc",
+  valueType: "string",
+  getValue: (user) => user.token,
+}
+```
+
+Create a matching compound index for the filters and ordering, such as
+`(created_at DESC, id DESC)`, and inspect the database query plan. Exact index behavior depends on
+the dialect, collation, version, and filters.
+
+Opaque cursors are unsigned transport tokens. They do not bind a cursor to a tenant or filter, so
+the query must reapply authorization and tenant predicates on every request. Nullable ordering,
+backward traversal, signing, and arbitrary SQL order expressions are not supported in v1.
+
 ## Count matching rows
 
 The count query must describe the same filtered dataset as the select query. The adapter supports
@@ -189,7 +254,8 @@ function handleDrizzlePaginationError(error: unknown): never {
 ```
 
 Database, query-factory, and query-builder failures continue to propagate unchanged and are not
-classified as pagination errors. `DrizzlePaginationErrorCode` contains the three adapter codes.
+classified as pagination errors. `DrizzlePaginationErrorCode` also includes cursor order and
+cursor/order mismatch codes.
 The guard supports duplicate ESM and CommonJS package instances in the same realm, but not errors
 created with another realm's native constructors or errors altered by serialization or structured
 cloning. Its marker is an identification convention, not a security boundary.
@@ -410,8 +476,8 @@ driver. It can be used wherever the queries satisfy those Drizzle interfaces.
 
 ### Does it support cursor pagination?
 
-No. It implements numbered-page and native-offset pagination. Cursor pagination can be a better
-fit for large or frequently changing feeds.
+Yes. `paginateCursor()` implements forward-only, count-free keyset pagination using one or more
+non-null Drizzle columns and an opaque cursor. Numbered-page and native-offset modes are unchanged.
 
 ## Related package
 

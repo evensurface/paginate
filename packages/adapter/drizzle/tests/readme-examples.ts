@@ -10,6 +10,7 @@ import {
   createDrizzleAdapter,
   isDrizzlePaginationError,
   paginate,
+  paginateCursor,
   paginateOffset,
 } from "../src/index"
 
@@ -35,6 +36,8 @@ export function handleDrizzlePaginationError(error: unknown): never {
       case "DRIZZLE_INVALID_COUNT_ROWS":
       case "DRIZZLE_INVALID_COUNT":
       case "DRIZZLE_QUERY_REUSED":
+      case "DRIZZLE_INVALID_CURSOR_ORDER":
+      case "DRIZZLE_CURSOR_ORDER_MISMATCH":
         break
     }
   } else if (isPaginationError(error)) {
@@ -50,6 +53,7 @@ export async function compileDrizzleReadmeExamples(
   offset: string | number | undefined,
   limit: string | number | undefined,
   search?: string,
+  cursor?: string,
 ) {
   const where = eq(users.active, true)
 
@@ -80,6 +84,25 @@ export async function compileDrizzleReadmeExamples(
     query: () => db.select().from(users).where(where).orderBy(asc(users.id)),
     countQuery: db.$count(users, where),
     offset,
+    limit,
+  })
+  const cursorResult = await paginateCursor({
+    query: ({ cursorWhere, orderBy }) =>
+      db
+        .select({ id: users.id, name: users.name, createdAt: users.createdAt })
+        .from(users)
+        .where(and(where, cursorWhere))
+        .orderBy(...orderBy),
+    orderBy: [
+      {
+        key: "createdAt",
+        column: users.createdAt,
+        direction: "desc",
+        getValue: (user) => user.createdAt,
+      },
+      { key: "id", column: users.id, direction: "desc", getValue: (user) => user.id },
+    ],
+    cursor,
     limit,
   })
 
@@ -137,6 +160,7 @@ export async function compileDrizzleReadmeExamples(
 
   return {
     dynamicResult,
+    cursorResult,
     joined,
     lowLevel,
     lowLevelOffset,

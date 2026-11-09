@@ -1,8 +1,7 @@
 # TypeScript Pagination for Any Framework or ORM
 
-`@evensurface/paginate` is a small, type-safe offset pagination library for Node.js and
-TypeScript. It turns untrusted `page` and `limit` values into database-ready offsets and returns
-consistent pagination metadata for APIs, server-rendered pages, and admin dashboards.
+`@evensurface/paginate` is a small, type-safe page, offset, and cursor pagination library for
+Node.js and TypeScript. It supports counted navigation and genuine count-free keyset traversal.
 
 Use the core package with any database or ORM, or add the first-party Drizzle ORM adapter.
 
@@ -26,11 +25,12 @@ Use the core package with any database or ORM, or add the first-party Drizzle OR
 - Resolves out-of-range pages to the last page and preserves out-of-range native offsets
 - Generates compact navigation such as `1 … 4 5 6 … 20`
 - Preserves item types through generic and Drizzle-specific adapters
+- Uses opaque typed cursors and `limit + 1` lookahead for keyset pagination
 
-This library implements **offset pagination**. Use `paginate()` for numbered-page navigation or
-`paginateOffset()` when an API exposes a zero-based offset directly. Both functions use the same
-adapter and limit configuration. The library does not generate routes, render pagination UI, or
-prescribe a web framework.
+Use `paginate()` for numbered pages, `paginateOffset()` for a zero-based offset, or
+`paginateCursor()` for forward-only keyset pagination. Cursor mode uses a separate adapter and does
+not execute a count query. The library does not generate routes, render pagination UI, or prescribe
+a web framework.
 
 ## Quick start
 

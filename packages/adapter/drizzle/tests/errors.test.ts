@@ -207,6 +207,8 @@ function handleCode(code: DrizzlePaginationErrorCode): DrizzlePaginationErrorCod
     case "DRIZZLE_INVALID_COUNT_ROWS":
     case "DRIZZLE_INVALID_COUNT":
     case "DRIZZLE_QUERY_REUSED":
+    case "DRIZZLE_INVALID_CURSOR_ORDER":
+    case "DRIZZLE_CURSOR_ORDER_MISMATCH":
       return code
     default:
       return assertNever(code)

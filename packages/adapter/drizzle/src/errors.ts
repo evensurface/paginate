@@ -13,15 +13,28 @@ const drizzlePaginationErrorDefinitions = {
     message: "Drizzle query factory must return a fresh select query.",
     ErrorConstructor: TypeError,
   },
+  DRIZZLE_INVALID_CURSOR_ORDER: {
+    message: "Drizzle cursor order must contain unique, non-null comparable columns.",
+    ErrorConstructor: TypeError,
+  },
+  DRIZZLE_CURSOR_ORDER_MISMATCH: {
+    message: "Cursor order does not match the configured Drizzle order.",
+    ErrorConstructor: TypeError,
+  },
 } as const
 
 export type DrizzlePaginationErrorCode = keyof typeof drizzlePaginationErrorDefinitions
 
-type DrizzleRangeErrorCode = Exclude<DrizzlePaginationErrorCode, "DRIZZLE_QUERY_REUSED">
+type DrizzleRangeErrorCode = Extract<
+  DrizzlePaginationErrorCode,
+  "DRIZZLE_INVALID_COUNT_ROWS" | "DRIZZLE_INVALID_COUNT"
+>
+
+type DrizzleTypeErrorCode = Exclude<DrizzlePaginationErrorCode, DrizzleRangeErrorCode>
 
 export type DrizzlePaginationError =
   | (RangeError & { readonly code: DrizzleRangeErrorCode })
-  | (TypeError & { readonly code: "DRIZZLE_QUERY_REUSED" })
+  | (TypeError & { readonly code: DrizzleTypeErrorCode })
 
 export function getDrizzlePaginationErrorMessage(code: DrizzlePaginationErrorCode): string {
   return drizzlePaginationErrorDefinitions[code].message

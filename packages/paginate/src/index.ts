@@ -24,9 +24,18 @@ export {
 } from "./core/page"
 
 export { paginate } from "./core/paginate"
+export { paginateCursor } from "./core/paginate-cursor"
 export { paginateOffset } from "./core/paginate-offset"
 
 export type {
+  CursorDirection,
+  CursorKey,
+  CursorPaginatedResult,
+  CursorPaginationAdapter,
+  CursorPaginationMetadata,
+  CursorPaginationOptions,
+  CursorPosition,
+  CursorValue,
   OffsetPaginatedResult,
   OffsetPaginationMetadata,
   OffsetPaginationOptions,

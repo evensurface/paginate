@@ -1,5 +1,10 @@
 import { describe, expect, expectTypeOf, it } from "vitest"
 import type {
+  CursorPaginatedResult,
+  CursorPaginationAdapter,
+  CursorPaginationMetadata,
+  CursorPaginationOptions,
+  CursorPosition,
   OffsetPaginatedResult,
   OffsetPaginationMetadata,
   OffsetPaginationMetadataOptions,
@@ -27,6 +32,7 @@ describe("public API", () => {
       "createPaginationMetadata",
       "isPaginationError",
       "paginate",
+      "paginateCursor",
       "paginateOffset",
       "parseLimit",
       "parseOffset",
@@ -52,6 +58,12 @@ describe("public API", () => {
     expectTypeOf<OffsetPaginatedResult<string>["items"]>().toEqualTypeOf<string[]>()
     expectTypeOf<OffsetPaginationOptions<string, number, boolean>["adapter"]>().toEqualTypeOf<
       PaginationAdapter<string, number, boolean>
+    >()
+    expectTypeOf<CursorPosition[number]["direction"]>().toEqualTypeOf<"asc" | "desc">()
+    expectTypeOf<CursorPaginationMetadata["nextCursor"]>().toEqualTypeOf<string | null>()
+    expectTypeOf<CursorPaginatedResult<string>["items"]>().toEqualTypeOf<string[]>()
+    expectTypeOf<CursorPaginationOptions<string, boolean>["adapter"]>().toEqualTypeOf<
+      CursorPaginationAdapter<string, boolean>
     >()
   })
 })

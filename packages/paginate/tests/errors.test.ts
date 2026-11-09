@@ -212,6 +212,10 @@ function handleCode(code: PaginationErrorCode): PaginationErrorCode {
     case "INVALID_TOTAL_PAGES":
     case "INVALID_SIBLINGS":
     case "INVALID_BOUNDARIES":
+    case "INVALID_CURSOR":
+    case "UNSUPPORTED_CURSOR_VERSION":
+    case "INVALID_CURSOR_POSITION":
+    case "CURSOR_LIMIT_OVERFLOW":
       return code
     default:
       return assertNever(code)

@@ -41,6 +41,22 @@ const paginationErrorDefinitions = {
     message: "Boundaries must be a positive safe integer.",
     ErrorConstructor: RangeError,
   },
+  INVALID_CURSOR: {
+    message: "Cursor must be a valid cursor token.",
+    ErrorConstructor: RangeError,
+  },
+  UNSUPPORTED_CURSOR_VERSION: {
+    message: "Cursor version is not supported.",
+    ErrorConstructor: RangeError,
+  },
+  INVALID_CURSOR_POSITION: {
+    message: "Cursor position must contain valid, uniquely named keys.",
+    ErrorConstructor: RangeError,
+  },
+  CURSOR_LIMIT_OVERFLOW: {
+    message: "Cursor lookahead limit exceeds the maximum safe integer.",
+    ErrorConstructor: RangeError,
+  },
 } as const
 
 export type PaginationErrorCode = keyof typeof paginationErrorDefinitions

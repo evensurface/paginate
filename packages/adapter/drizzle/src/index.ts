@@ -9,6 +9,17 @@ import {
 } from "@evensurface/paginate"
 import { annotateDrizzlePaginationError, getDrizzlePaginationErrorMessage } from "./errors"
 
+export type {
+  DrizzleCursorOrder,
+  DrizzleCursorOrderEntry,
+  DrizzleCursorPaginationOptions,
+  DrizzleCursorQueryFactory,
+  DrizzleCursorQueryOptions,
+  DrizzleCursorSelectQuery,
+  DrizzleCursorValueType,
+} from "./cursor"
+export { createDrizzleCursorAdapter, paginateCursor } from "./cursor"
+
 export type { DrizzlePaginationError, DrizzlePaginationErrorCode } from "./errors"
 export { isDrizzlePaginationError } from "./errors"
 

@@ -1,4 +1,6 @@
 import {
+  type CursorPaginationAdapter,
+  type CursorPosition,
   calculateOffset,
   createOffsetPaginationMetadata,
   createPageWindow,
@@ -6,6 +8,7 @@ import {
   isPaginationError,
   type PaginationAdapter,
   paginate,
+  paginateCursor,
   paginateOffset,
   parseLimit,
   parseOffset,
@@ -16,6 +19,7 @@ import {
 type User = {
   id: number
   name: string
+  createdAt: Date
 }
 
 /** Compile-checked counterpart of the README error-handling example. */
@@ -45,7 +49,14 @@ const database = {
         offset: number
         orderBy: { id: "asc" }
       },
-    ): Promise<User[]> => [{ id: 1, name: "Ada" }],
+    ): Promise<User[]> => [{ id: 1, name: "Ada", createdAt: new Date(0) }],
+    findAfter: async (
+      _options: UserFilter & {
+        position: CursorPosition | undefined
+        limit: number
+        orderBy: readonly ["createdAt desc", "id desc"]
+      },
+    ): Promise<User[]> => [{ id: 1, name: "Ada", createdAt: new Date(0) }],
   },
 }
 
@@ -63,11 +74,29 @@ const userAdapter: PaginationAdapter<UserFilter, UserFilter, User> = {
   },
 }
 
+const userCursorAdapter: CursorPaginationAdapter<UserFilter, User> = {
+  fetch(filter, { position, limit }) {
+    return database.users.findAfter({
+      ...filter,
+      position,
+      limit,
+      orderBy: ["createdAt desc", "id desc"],
+    })
+  },
+  getPosition(user) {
+    return [
+      { key: "createdAt", direction: "desc", value: user.createdAt },
+      { key: "id", direction: "desc", value: user.id },
+    ]
+  },
+}
+
 /** Compile-checked counterparts of the public core README examples. */
 export async function compileCoreReadmeExamples(
   pageInput: string | number | undefined,
   offsetInput: string | number | undefined,
   limitInput: string | number | undefined,
+  cursorInput?: string,
 ) {
   const result = await paginate({
     adapter: userAdapter,
@@ -88,6 +117,12 @@ export async function compileCoreReadmeExamples(
       minLimit: 5,
       maxLimit: 200,
     },
+  })
+  const cursorResult = await paginateCursor({
+    adapter: userCursorAdapter,
+    query: { active: true },
+    cursor: cursorInput,
+    limit: limitInput,
   })
 
   const requestedPage = parsePage(pageInput)
@@ -118,6 +153,7 @@ export async function compileCoreReadmeExamples(
 
   return {
     customResult,
+    cursorResult,
     endpointResult,
     offset,
     offsetPagination,

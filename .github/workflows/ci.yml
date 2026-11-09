@@ -40,8 +40,10 @@ jobs:
             assert.equal(pager.parsePage('3'), 3)
             assert.equal(pager.parseOffset('3'), 3)
             assert.equal(typeof pager.paginateOffset, 'function')
+            assert.equal(typeof pager.paginateCursor, 'function')
             assert.equal(typeof drizzle.paginate, 'function')
             assert.equal(typeof drizzle.paginateOffset, 'function')
+            assert.equal(typeof drizzle.paginateCursor, 'function')
           "
           node --eval "
             const assert = require('node:assert/strict')
@@ -50,6 +52,8 @@ jobs:
             assert.equal(pager.parsePage('3'), 3)
             assert.equal(pager.parseOffset('3'), 3)
             assert.equal(typeof pager.paginateOffset, 'function')
+            assert.equal(typeof pager.paginateCursor, 'function')
             assert.equal(typeof drizzle.paginate, 'function')
             assert.equal(typeof drizzle.paginateOffset, 'function')
+            assert.equal(typeof drizzle.paginateCursor, 'function')
           "

@@ -1,5 +1,12 @@
 # @evensurface/paginate
 
+## 2.1.0
+
+### Minor Changes
+
+- Add forward-only native cursor pagination with opaque typed cursors, count-free lookahead, a
+  database-agnostic cursor adapter, and portable Drizzle keyset predicates.
+
 ## 2.0.0
 
 ### Major Changes

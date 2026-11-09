@@ -1,7 +1,7 @@
 {
   "name": "@evensurface/paginate-drizzle",
-  "version": "2.0.0",
-  "description": "Type-safe offset pagination for Drizzle ORM with inferred rows, count queries, and complete pagination metadata.",
+  "version": "2.1.0",
+  "description": "Type-safe page, offset, and keyset cursor pagination for Drizzle ORM with inferred rows.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -46,6 +46,8 @@
     "paginator",
     "pagination",
     "offset-pagination",
+    "cursor-pagination",
+    "keyset-pagination",
     "api-pagination",
     "database-pagination",
     "typescript",

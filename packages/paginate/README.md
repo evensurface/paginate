@@ -1,10 +1,10 @@
 # @evensurface/paginate
 
-Framework-independent, ORM-agnostic offset pagination for Node.js and TypeScript.
+Framework-independent page, offset, and cursor pagination for Node.js and TypeScript.
 
-`@evensurface/paginate` safely parses URL pagination parameters, calculates database offsets,
-returns complete pagination metadata, and builds compact page-number navigation. Connect it to any
-database, ORM, API, or in-memory data source with a small typed adapter.
+`@evensurface/paginate` provides counted page and offset pagination plus count-free keyset cursor
+pagination. Connect it to any database, ORM, API, or in-memory data source with a small typed
+adapter.
 
 ## Why use it?
 
@@ -15,13 +15,15 @@ database, ORM, API, or in-memory data source with a small typed adapter.
 - Includes standalone helpers for metadata and pagination UI
 - Has no required ORM or web-framework integration
 
-This package implements **offset pagination** through two public modes:
+This package implements three public modes:
 
 - `paginate()` accepts a one-based page and returns page-navigation metadata.
 - `paginateOffset()` accepts a zero-based offset and preserves that exact position.
+- `paginateCursor()` accepts an opaque cursor and performs forward-only keyset pagination.
 
-Both modes use the same adapter and page-size configuration. The package does not generate routes
-or UI components.
+All modes share page-size configuration. Page and offset modes share the counted-offset adapter;
+cursor mode uses a separate keyset adapter and never performs a count. The package does not
+generate routes or UI components.
 
 ## Requirements
 
@@ -53,6 +55,7 @@ import { paginate, type PaginationAdapter } from "@evensurface/paginate"
 type User = {
   id: number
   name: string
+  createdAt: Date
 }
 
 type UserFilter = {
@@ -131,6 +134,64 @@ return {
   offset: result.pagination.offset,
 }
 ```
+
+### Use native cursor pagination
+
+Use `paginateCursor()` for feeds and large ordered datasets where deep offsets would be expensive.
+The adapter receives a decoded typed position and must execute a genuine keyset query:
+
+```ts
+import { paginateCursor, type CursorPaginationAdapter } from "@evensurface/paginate"
+
+const cursorAdapter: CursorPaginationAdapter<UserFilter, User> = {
+  fetch(filter, { position, limit }) {
+    return database.users.findAfter({
+      ...filter,
+      position,
+      limit,
+      orderBy: ["createdAt desc", "id desc"],
+    })
+  },
+  getPosition(user) {
+    return [
+      { key: "createdAt", direction: "desc", value: user.createdAt },
+      { key: "id", direction: "desc", value: user.id },
+    ]
+  },
+}
+
+const result = await paginateCursor({
+  adapter: cursorAdapter,
+  query: { active: true },
+  cursor: request.query.cursor,
+  limit: request.query.limit,
+})
+```
+
+Cursor results contain only forward-navigation metadata:
+
+```ts
+{
+  items: [/* User[] */],
+  pagination: {
+    limit: 20,
+    nextCursor: "opaque-token-or-null",
+    hasNextPage: true,
+  },
+}
+```
+
+Cursor mode fetches `limit + 1` rows to detect another page, returns at most `limit`, and does not
+count. Supplied cursors are strict: malformed, empty, oversized, or unsupported tokens throw a
+coded pagination error instead of restarting at the first page.
+
+Cursor tokens are versioned Base64URL transport values, not signatures. They provide no secrecy or
+tamper resistance and must never be used as authorization evidence. Reapply tenant and access
+filters on every request.
+
+Use non-null, immutable ordering keys and finish with a unique tie-breaker. A timestamp alone is
+not stable when rows share the same timestamp. Cursor v1 supports string, finite number, bigint,
+and valid `Date` values. Backward navigation and nullable ordering keys are not supported.
 
 ## Result shape
 
@@ -433,9 +494,8 @@ offset, and performs one fetch for that page. Compare the requested value with
 
 ### Does it support cursor pagination?
 
-No. This package provides numbered-page and native-offset pagination. Cursor pagination is usually
-a better fit for large, frequently changing feeds where stable traversal matters more than direct
-position navigation.
+Yes. `paginateCursor()` provides forward-only, count-free keyset pagination through a separate
+cursor adapter. It does not emulate cursors with offsets.
 
 ### Must the count and fetch queries have the same filters?
 

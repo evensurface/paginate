@@ -184,6 +184,20 @@ tbody tr:hover {
   cursor: not-allowed;
 }
 
+.pagination-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+}
+
+.pagination-button:disabled {
+  color: var(--muted);
+}
+
 /* Bottom */
 
 .page-bottom {

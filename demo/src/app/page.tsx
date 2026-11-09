@@ -4,21 +4,37 @@ import Link from "next/link"
 import { db } from "@/db"
 import { products } from "@/db/schema"
 
-interface HomeProps {
+export default async function Home({
+  searchParams,
+}: {
   searchParams: Promise<{ page?: string; limit?: string }>
-}
-
-export default async function Home({ searchParams }: HomeProps) {
+}) {
   const { page, limit } = await searchParams
 
   const filter = gt(products.priceInCents, 10000)
 
-  const { items, pagination } = await paginate({
+  const { items, pagination: paginationMetadata } = await paginate({
     query: () => db.select().from(products).where(filter).orderBy(asc(products.id)),
     countQuery: db.$count(products, filter),
     page,
     limit,
   })
+
+  /*
+   * ITEMS TYPE                          INTERFACE TYPE
+   *
+   * const items: {                      interface PaginationMetadata {
+   *   id: number;                         page: number;
+   *   name: string;                       limit: number;
+   *   priceInCents: number;               offset: number;
+   * }[]                                   total: number;
+   *                                       totalPages: number;
+   *                                       hasNextPage: boolean;
+   *                                       hasPreviousPage: boolean;
+   *                                       firstItem: number;
+   *                                       lastItem: number;
+   *                                     }
+   */
 
   return (
     <main className="container">
@@ -30,7 +46,7 @@ export default async function Home({ searchParams }: HomeProps) {
       <section className="table-container" aria-label="Products">
         <div className="table-header">
           <h2>All products</h2>
-          <span>{pagination.total} products</span>
+          <span>{paginationMetadata.total} products</span>
         </div>
 
         <div className="table-scroll">
@@ -66,22 +82,23 @@ export default async function Home({ searchParams }: HomeProps) {
 
         <footer className="table-footer">
           <p>
-            Showing {pagination.firstItem}–{pagination.lastItem} of {pagination.total}
+            Showing {paginationMetadata.firstItem}–{paginationMetadata.lastItem} of{" "}
+            {paginationMetadata.total}
           </p>
 
           <nav className="pagination" aria-label="Pagination">
-            {pagination.hasPreviousPage ? (
-              <Link href={`/?page=${pagination.page - 1}`}>Previous</Link>
+            {paginationMetadata.hasPreviousPage ? (
+              <Link href={`/?page=${paginationMetadata.page - 1}`}>Previous</Link>
             ) : (
               <span className="disabled">Previous</span>
             )}
 
             <span className="page-indicator">
-              {pagination.page} / {pagination.totalPages}
+              {paginationMetadata.page} / {paginationMetadata.totalPages}
             </span>
 
-            {pagination.hasNextPage ? (
-              <Link href={`/?page=${pagination.page + 1}`}>Next</Link>
+            {paginationMetadata.hasNextPage ? (
+              <Link href={`/?page=${paginationMetadata.page + 1}`}>Next</Link>
             ) : (
               <span className="disabled">Next</span>
             )}

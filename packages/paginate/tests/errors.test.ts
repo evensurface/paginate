@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from "vitest"
 import { annotatePaginationError } from "../src/core/errors"
 import {
   calculateOffset,
+  createOffsetPaginationMetadata,
   createPageWindow,
   createPaginationMetadata,
   isPaginationError,
@@ -27,6 +28,11 @@ const errorCases: readonly [PaginationErrorCode, () => unknown, string][] = [
   ],
   ["INVALID_PAGE", () => calculateOffset(0, 1), "Page must be a positive safe integer."],
   ["INVALID_LIMIT", () => calculateOffset(1, 0), "Limit must be a positive safe integer."],
+  [
+    "INVALID_OFFSET",
+    () => createOffsetPaginationMetadata({ offset: -1, limit: 1, total: 1 }),
+    "Offset must be a non-negative safe integer.",
+  ],
   [
     "OFFSET_OVERFLOW",
     () => calculateOffset(Number.MAX_SAFE_INTEGER, 2),
@@ -200,6 +206,7 @@ function handleCode(code: PaginationErrorCode): PaginationErrorCode {
     case "INVALID_DEFAULT_LIMIT":
     case "INVALID_PAGE":
     case "INVALID_LIMIT":
+    case "INVALID_OFFSET":
     case "OFFSET_OVERFLOW":
     case "INVALID_TOTAL":
     case "INVALID_TOTAL_PAGES":

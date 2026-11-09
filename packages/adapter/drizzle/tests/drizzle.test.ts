@@ -6,7 +6,7 @@ import { drizzle as drizzlePg } from "drizzle-orm/pg-proxy"
 import { integer as sqliteInteger, sqliteTable, text as sqliteText } from "drizzle-orm/sqlite-core"
 import { drizzle as drizzleSqlite } from "drizzle-orm/sqlite-proxy"
 import { describe, expect, expectTypeOf, it, vi } from "vitest"
-import { createDrizzleAdapter, paginate } from "../src/index"
+import { createDrizzleAdapter, paginate, paginateOffset } from "../src/index"
 
 interface User {
   id: number
@@ -31,6 +31,7 @@ describe("createDrizzleAdapter", () => {
       "createDrizzleAdapter",
       "isDrizzlePaginationError",
       "paginate",
+      "paginateOffset",
     ])
   })
 
@@ -499,5 +500,153 @@ describe("paginate", () => {
 
     type InferredItems = Awaited<ReturnType<typeof inferResult>>["items"]
     expectTypeOf<InferredItems>().toEqualTypeOf<{ id: number; name: string }[]>()
+  })
+})
+
+describe("paginateOffset", () => {
+  it("returns items and native offset metadata", async () => {
+    const users = Array.from({ length: 25 }, (_, index) => ({
+      id: index + 1,
+      name: `User ${index + 1}`,
+    }))
+    const { query, limit, offset } = createSelectQuery(users)
+
+    const result = await paginateOffset({
+      query: () => query,
+      countQuery: Promise.resolve(users.length),
+      offset: 7,
+      limit: 10,
+    })
+
+    expect(result.items).toEqual(users.slice(7, 17))
+    expect(result.pagination).toEqual({
+      total: 25,
+      limit: 10,
+      offset: 7,
+      hasNextPage: true,
+      hasPreviousPage: true,
+    })
+    expect(limit).toHaveBeenCalledWith(10)
+    expect(offset).toHaveBeenCalledWith(7)
+  })
+
+  it("does not create a select query for an out-of-range offset", async () => {
+    const createQuery = vi.fn(() => createSelectQuery<User>([]).query)
+
+    const result = await paginateOffset({
+      query: createQuery,
+      countQuery: Promise.resolve(5),
+      offset: 5,
+      limit: 2,
+    })
+
+    expect(result.items).toEqual([])
+    expect(result.pagination).toMatchObject({ offset: 5, total: 5 })
+    expect(createQuery).not.toHaveBeenCalled()
+  })
+
+  it("forwards custom page-size configuration", async () => {
+    const { query } = createSelectQuery(Array.from({ length: 50 }, (_, id) => ({ id })))
+    const result = await paginateOffset({
+      query: () => query,
+      countQuery: Promise.resolve(50),
+      limit: 100,
+      pageSizeOptions: { defaultLimit: 15, minLimit: 5, maxLimit: 30 },
+    })
+
+    expect(result.pagination.limit).toBe(30)
+  })
+
+  it("preserves query-builder reuse protection", async () => {
+    const { query, limit } = createSelectQuery([{ id: 1, name: "Ada" }])
+    const createQuery = () => query
+    const countQuery = Promise.resolve(1)
+
+    await paginateOffset({ query: createQuery, countQuery })
+    await expect(paginateOffset({ query: createQuery, countQuery })).rejects.toMatchObject({
+      code: "DRIZZLE_QUERY_REUSED",
+    })
+    expect(limit).toHaveBeenCalledOnce()
+  })
+
+  it("executes PostgreSQL builders with an arbitrary offset", async () => {
+    const executions: { params: unknown[]; sql: string }[] = []
+    const users = pgTable("offset_pg_users", {
+      id: integer().notNull(),
+      name: text().notNull(),
+    })
+    const db = drizzlePg(async (sql, params) => {
+      executions.push({ sql, params })
+      return { rows: sql.includes("count(") ? [[10]] : [[8, "Linus"]] }
+    })
+
+    const result = await paginateOffset({
+      query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
+      countQuery: db.select({ total: count() }).from(users),
+      offset: 7,
+      limit: 2,
+    })
+
+    expect(result.items).toEqual([{ id: 8, name: "Linus" }])
+    expect(executions[1]?.sql).toMatch(/limit \$1 offset \$2$/)
+    expect(executions[1]?.params).toEqual([2, 7])
+  })
+
+  it("executes MySQL builders with an arbitrary offset", async () => {
+    const executions: { params: unknown[]; sql: string }[] = []
+    const users = mysqlTable("offset_mysql_users", {
+      id: int().notNull(),
+      name: varchar({ length: 255 }).notNull(),
+    })
+    const db = drizzleMysql(async (sql, params) => {
+      executions.push({ sql, params })
+      return { rows: sql.includes("count(") ? [[10]] : [[8, "Linus"]] }
+    })
+
+    await paginateOffset({
+      query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
+      countQuery: db.select({ total: count() }).from(users),
+      offset: 7,
+      limit: 2,
+    })
+
+    expect(executions[1]?.sql).toMatch(/limit \? offset \?$/)
+    expect(executions[1]?.params).toEqual([2, 7])
+  })
+
+  it("executes SQLite builders with an arbitrary offset", async () => {
+    const executions: { params: unknown[]; sql: string }[] = []
+    const users = sqliteTable("offset_sqlite_users", {
+      id: sqliteInteger().notNull(),
+      name: sqliteText().notNull(),
+    })
+    const db = drizzleSqlite(async (sql, params) => {
+      executions.push({ sql, params })
+      return { rows: sql.includes("count(") ? [[10]] : [[8, "Linus"]] }
+    })
+
+    await paginateOffset({
+      query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
+      countQuery: db.select({ total: count() }).from(users),
+      offset: 7,
+      limit: 2,
+    })
+
+    expect(executions[1]?.sql).toMatch(/limit \? offset \?$/)
+    expect(executions[1]?.params).toEqual([2, 7])
+  })
+
+  it("preserves inferred rows from a real Drizzle select builder", () => {
+    const users = pgTable("offset_users", {
+      id: integer().notNull(),
+      name: text().notNull(),
+    })
+    const db = drizzlePg(async () => ({ rows: [] }))
+    const result = paginateOffset({
+      query: () => db.select().from(users).orderBy(users.id),
+      countQuery: Promise.resolve(1),
+    })
+
+    expectTypeOf<Awaited<typeof result>["items"]>().toEqualTypeOf<{ id: number; name: string }[]>()
   })
 })

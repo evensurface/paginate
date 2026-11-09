@@ -1,13 +1,16 @@
 export type { PaginationError, PaginationErrorCode } from "./core/errors"
 export { isPaginationError } from "./core/errors"
 export type {
+  OffsetPaginationMetadataOptions,
   PageWindowOptions,
   PaginationMetadataOptions,
 } from "./core/metadata"
 export {
+  createOffsetPaginationMetadata,
   createPageWindow,
   createPaginationMetadata,
 } from "./core/metadata"
+export { parseOffset } from "./core/offset"
 export type { PageSizeOptions } from "./core/page"
 export {
   calculateOffset,
@@ -20,8 +23,12 @@ export {
 } from "./core/page"
 
 export { paginate } from "./core/paginate"
+export { paginateOffset } from "./core/paginate-offset"
 
 export type {
+  OffsetPaginatedResult,
+  OffsetPaginationMetadata,
+  OffsetPaginationOptions,
   PaginatedResult,
   PaginationAdapter,
   PaginationMetadata,

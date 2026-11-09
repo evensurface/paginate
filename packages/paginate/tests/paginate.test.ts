@@ -17,6 +17,23 @@ function createAdapter(total: number) {
 }
 
 describe("paginate", () => {
+  it("counts before fetching", async () => {
+    const { adapter } = createAdapter(1)
+    const calls: string[] = []
+    vi.mocked(adapter.count).mockImplementation(async () => {
+      calls.push("count")
+      return 1
+    })
+    vi.mocked(adapter.fetch).mockImplementation(async () => {
+      calls.push("fetch")
+      return [1]
+    })
+
+    await paginate({ adapter, query: { category: "books" }, countQuery: "books" })
+
+    expect(calls).toEqual(["count", "fetch"])
+  })
+
   it("fetches the requested page with inferred item types", async () => {
     const { adapter } = createAdapter(45)
     const result = await paginate({

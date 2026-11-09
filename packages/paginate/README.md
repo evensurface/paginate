@@ -15,7 +15,13 @@ database, ORM, API, or in-memory data source with a small typed adapter.
 - Includes standalone helpers for metadata and pagination UI
 - Has no required ORM or web-framework integration
 
-This package implements **offset pagination**. It does not generate routes or UI components.
+This package implements **offset pagination** through two public modes:
+
+- `paginate()` accepts a one-based page and returns page-navigation metadata.
+- `paginateOffset()` accepts a zero-based offset and preserves that exact position.
+
+Both modes use the same adapter and page-size configuration. The package does not generate routes
+or UI components.
 
 ## Requirements
 
@@ -78,6 +84,52 @@ const result = await paginate({
 
 Request values may be numbers, numeric strings, missing values, or any other unknown input. You do
 not need to parse query-string values before passing them to `paginate`.
+
+### Use a native offset
+
+Use `paginateOffset()` for APIs that expose `offset` and `limit` directly:
+
+```ts
+import { paginateOffset } from "@evensurface/paginate"
+
+const result = await paginateOffset({
+  adapter: userAdapter,
+  query: { active: true },
+  countQuery: { active: true },
+  offset: request.query.offset,
+  limit: request.query.limit,
+})
+```
+
+The offset is zero-based and may be any non-negative safe integer; it does not need to align with a
+numbered page. Missing or invalid offsets become `0`. An offset at or beyond the total is preserved
+and returns an empty `items` array without calling the adapter's fetch method.
+
+Native offset results contain only offset-relevant metadata:
+
+```ts
+{
+  items: [/* User[] */],
+  pagination: {
+    total: 95,
+    limit: 20,
+    offset: 40,
+    hasNextPage: true,
+    hasPreviousPage: true,
+  },
+}
+```
+
+This supports endpoint conventions that flatten pagination metadata:
+
+```ts
+return {
+  users: result.items,
+  total: result.pagination.total,
+  limit: result.pagination.limit,
+  offset: result.pagination.offset,
+}
+```
 
 ## Result shape
 
@@ -187,7 +239,8 @@ function handlePaginationError(error: unknown): never {
 }
 ```
 
-`PaginationErrorCode` contains the nine stable core codes, and `PaginationError` describes the
+`PaginationErrorCode` contains the stable core codes, including `INVALID_OFFSET` for strict native
+offset metadata construction. `PaginationError` describes the
 narrowed native error. The guard rejects ordinary errors and errors authored by adapters. It works
 across duplicate ESM and CommonJS package instances in the same JavaScript realm. It intentionally
 does not recognize errors created with another realm's native error constructors or errors that
@@ -228,8 +281,9 @@ interface PaginationAdapter<TQuery, TCountQuery, TItem> {
 }
 ```
 
-`paginate` executes `count` first. It resolves the requested page against the count, then calls
-`fetch` once with the resolved offset. It does not call `fetch` when the count is zero.
+Both pagination functions execute `count` first. `paginate` resolves the requested page against the
+count, while `paginateOffset` preserves the requested offset. They call `fetch` at most once;
+native offset pagination also skips it when the offset is at or beyond the count.
 
 ## Tradeoffs and operational considerations
 
@@ -304,18 +358,27 @@ You can parse request inputs and create metadata without the adapter-based `pagi
 ```ts
 import {
   calculateOffset,
+  createOffsetPaginationMetadata,
   createPaginationMetadata,
   parseLimit,
+  parseOffset,
   parsePage,
   resolvePage,
 } from "@evensurface/paginate"
 
 const requestedPage = parsePage(request.query.page)
+const requestedOffset = parseOffset(request.query.offset)
 const limit = parseLimit(request.query.limit, { maxLimit: 50 })
 
 // If you already know the total:
 const pagination = createPaginationMetadata({
   page: requestedPage,
+  limit,
+  total: 95,
+})
+
+const offsetPagination = createOffsetPaginationMetadata({
+  offset: requestedOffset,
   limit,
   total: 95,
 })
@@ -330,10 +393,12 @@ const offset = calculateOffset(page, limit)
 | Export | Purpose |
 | --- | --- |
 | `parsePage(value)` | Converts unknown input to a positive page number, defaulting to `1` |
+| `parseOffset(value)` | Converts unknown input to a non-negative offset, defaulting to `0` |
 | `parseLimit(value, options?)` | Converts unknown input to a bounded page size |
 | `calculateOffset(page, limit)` | Calculates `(page - 1) * limit` with safe-integer validation |
 | `resolvePage(page, totalPages)` | Clamps a page to the available range |
 | `createPaginationMetadata(options)` | Creates all metadata fields from page, limit, and total |
+| `createOffsetPaginationMetadata(options)` | Creates native offset metadata from offset, limit, and total |
 | `createPageWindow(options)` | Creates compact page-number navigation |
 
 The package also exports `DEFAULT_PAGE_SIZE`, `MIN_PAGE_SIZE`, and `MAX_PAGE_SIZE`, plus all public
@@ -367,9 +432,9 @@ offset, and performs one fetch for that page. Compare the requested value with
 
 ### Does it support cursor pagination?
 
-No. This package is specifically for offset pagination with numbered pages. Cursor pagination is
-usually a better fit for large, frequently changing feeds where stable traversal matters more than
-direct page navigation.
+No. This package provides numbered-page and native-offset pagination. Cursor pagination is usually
+a better fit for large, frequently changing feeds where stable traversal matters more than direct
+position navigation.
 
 ### Must the count and fetch queries have the same filters?
 

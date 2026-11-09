@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { createPageWindow, createPaginationMetadata } from "../src/core/metadata"
+import {
+  createOffsetPaginationMetadata,
+  createPageWindow,
+  createPaginationMetadata,
+} from "../src/core/metadata"
 import { calculateOffset, parseLimit, resolvePage } from "../src/core/page"
 
 function expectRangeError(run: () => unknown, message: string): void {
@@ -52,6 +56,21 @@ describe("core error characterization", () => {
     expectRangeError(
       () => createPaginationMetadata({ page: 0, limit: 20, total: 10 }),
       "Page must be a positive safe integer.",
+    )
+  })
+
+  it("preserves native offset metadata errors and precedence", () => {
+    expectRangeError(
+      () => createOffsetPaginationMetadata({ offset: -1, limit: 0, total: -1 }),
+      "Total must be a non-negative safe integer.",
+    )
+    expectRangeError(
+      () => createOffsetPaginationMetadata({ offset: -1, limit: 0, total: 10 }),
+      "Limit must be a positive safe integer.",
+    )
+    expectRangeError(
+      () => createOffsetPaginationMetadata({ offset: -1, limit: 20, total: 10 }),
+      "Offset must be a non-negative safe integer.",
     )
   })
 

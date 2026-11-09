@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   isNonNegativeSafeInteger,
   isPositiveSafeInteger,
+  toNonNegativeSafeInteger,
   toPositiveSafeInteger,
 } from "../src/core/integer"
 
@@ -48,6 +49,33 @@ describe("integer utilities", () => {
       String(Number.MAX_SAFE_INTEGER + 1),
     ]) {
       expect(toPositiveSafeInteger(value)).toBeUndefined()
+    }
+  })
+
+  it("converts non-negative safe numbers and trimmed decimal digit strings", () => {
+    expect(toNonNegativeSafeInteger(0)).toBe(0)
+    expect(toNonNegativeSafeInteger(" 0000 ")).toBe(0)
+    expect(toNonNegativeSafeInteger(" 0015 ")).toBe(15)
+    expect(toNonNegativeSafeInteger(Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER)
+
+    for (const value of [
+      undefined,
+      null,
+      -1,
+      1.5,
+      1n,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      "",
+      " ",
+      "+1",
+      "-1",
+      "1.0",
+      "1e2",
+      "0x10",
+      String(Number.MAX_SAFE_INTEGER + 1),
+    ]) {
+      expect(toNonNegativeSafeInteger(value)).toBeUndefined()
     }
   })
 })

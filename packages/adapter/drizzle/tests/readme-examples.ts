@@ -1,8 +1,17 @@
-import { isPaginationError, paginate as paginateCore } from "@evensurface/paginate"
+import {
+  isPaginationError,
+  paginate as paginateCore,
+  paginateOffset as paginateOffsetCore,
+} from "@evensurface/paginate"
 import { and, asc, count, desc, eq, ilike } from "drizzle-orm"
 import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core"
 import { drizzle } from "drizzle-orm/pg-proxy"
-import { createDrizzleAdapter, isDrizzlePaginationError, paginate } from "../src/index"
+import {
+  createDrizzleAdapter,
+  isDrizzlePaginationError,
+  paginate,
+  paginateOffset,
+} from "../src/index"
 
 const teams = pgTable("readme_teams", {
   id: integer().notNull(),
@@ -36,7 +45,12 @@ export function handleDrizzlePaginationError(error: unknown): never {
 }
 
 /** Compile-checked counterparts of the public Drizzle README examples. */
-export async function compileDrizzleReadmeExamples(page: unknown, limit: unknown, search?: string) {
+export async function compileDrizzleReadmeExamples(
+  page: unknown,
+  offset: unknown,
+  limit: unknown,
+  search?: string,
+) {
   const where = eq(users.active, true)
 
   const quickStart = await paginate({
@@ -59,6 +73,13 @@ export async function compileDrizzleReadmeExamples(page: unknown, limit: unknown
     query: () => db.select().from(users).where(where).orderBy(asc(users.id)),
     countQuery: db.select({ total: count() }).from(users).where(where),
     page,
+    limit,
+  })
+
+  const offsetResult = await paginateOffset({
+    query: () => db.select().from(users).where(where).orderBy(asc(users.id)),
+    countQuery: db.$count(users, where),
+    offset,
     limit,
   })
 
@@ -106,6 +127,21 @@ export async function compileDrizzleReadmeExamples(page: unknown, limit: unknown
     page,
     limit,
   })
+  const lowLevelOffset = await paginateOffsetCore({
+    adapter: createDrizzleAdapter<UserRow>(),
+    query: createUserQuery,
+    countQuery: db.$count(users),
+    offset,
+    limit,
+  })
 
-  return { dynamicResult, joined, lowLevel, quickStart, selectedCount }
+  return {
+    dynamicResult,
+    joined,
+    lowLevel,
+    lowLevelOffset,
+    offsetResult,
+    quickStart,
+    selectedCount,
+  }
 }

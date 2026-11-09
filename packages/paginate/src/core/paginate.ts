@@ -1,3 +1,4 @@
+import { executeCountedOffsetPagination } from "./execute"
 import { createPaginationMetadata } from "./metadata"
 import { parseLimit, parsePage } from "./page"
 import type { PaginatedResult, PaginationOptions } from "./types"
@@ -27,22 +28,11 @@ export async function paginate<TQuery, TCountQuery, TItem>({
 }: PaginationOptions<TQuery, TCountQuery, TItem>): Promise<PaginatedResult<TItem>> {
   const page = parsePage(requestedPage)
   const limit = parseLimit(requestedLimit, pageSizeOptions)
-  const total = await adapter.count(countQuery)
-  const pagination = createPaginationMetadata({
-    page,
+  return executeCountedOffsetPagination({
+    adapter,
+    query,
+    countQuery,
     limit,
-    total,
+    createMetadata: (total) => createPaginationMetadata({ page, limit, total }),
   })
-
-  // There is nothing to fetch for an empty dataset.
-  if (total === 0) {
-    return { items: [], pagination }
-  }
-
-  const items = await adapter.fetch(query, {
-    limit,
-    offset: pagination.offset,
-  })
-
-  return { items, pagination }
 }

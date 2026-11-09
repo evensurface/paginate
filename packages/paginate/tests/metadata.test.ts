@@ -1,5 +1,55 @@
 import { describe, expect, it } from "vitest"
-import { createPageWindow, createPaginationMetadata } from "../src/core/metadata"
+import {
+  createOffsetPaginationMetadata,
+  createPageWindow,
+  createPaginationMetadata,
+} from "../src/core/metadata"
+
+describe("createOffsetPaginationMetadata", () => {
+  it.each([
+    [0, 20, 45, true, false],
+    [7, 20, 45, true, true],
+    [25, 20, 45, false, true],
+    [45, 20, 45, false, true],
+    [46, 20, 45, false, true],
+    [0, 20, 0, false, false],
+    [7, 20, 0, false, true],
+  ])(
+    "describes offset %d with limit %d and total %d",
+    (offset, limit, total, hasNextPage, hasPreviousPage) => {
+      expect(createOffsetPaginationMetadata({ offset, limit, total })).toEqual({
+        total,
+        limit,
+        offset,
+        hasNextPage,
+        hasPreviousPage,
+      })
+    },
+  )
+
+  it("calculates the next flag without overflowing safe integers", () => {
+    expect(
+      createOffsetPaginationMetadata({
+        offset: Number.MAX_SAFE_INTEGER - 1,
+        limit: 100,
+        total: Number.MAX_SAFE_INTEGER,
+      }),
+    ).toMatchObject({ hasNextPage: false, hasPreviousPage: true })
+  })
+
+  it("uses total, limit, then offset validation precedence", () => {
+    const invalidEverything = () =>
+      createOffsetPaginationMetadata({ offset: -1, limit: 0, total: -1 })
+    expect(invalidEverything).toThrow("Total must be a non-negative safe integer.")
+
+    const invalidLimitAndOffset = () =>
+      createOffsetPaginationMetadata({ offset: -1, limit: 0, total: 10 })
+    expect(invalidLimitAndOffset).toThrow("Limit must be a positive safe integer.")
+
+    const invalidOffset = () => createOffsetPaginationMetadata({ offset: -1, limit: 20, total: 10 })
+    expect(invalidOffset).toThrow("Offset must be a non-negative safe integer.")
+  })
+})
 
 describe("createPaginationMetadata", () => {
   it("describes a partially filled last page", () => {

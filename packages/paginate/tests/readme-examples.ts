@@ -1,11 +1,14 @@
 import {
   calculateOffset,
+  createOffsetPaginationMetadata,
   createPageWindow,
   createPaginationMetadata,
   isPaginationError,
   type PaginationAdapter,
   paginate,
+  paginateOffset,
   parseLimit,
+  parseOffset,
   parsePage,
   resolvePage,
 } from "../src/index"
@@ -61,7 +64,11 @@ const userAdapter: PaginationAdapter<UserFilter, UserFilter, User> = {
 }
 
 /** Compile-checked counterparts of the public core README examples. */
-export async function compileCoreReadmeExamples(pageInput: unknown, limitInput: unknown) {
+export async function compileCoreReadmeExamples(
+  pageInput: unknown,
+  offsetInput: unknown,
+  limitInput: unknown,
+) {
   const result = await paginate({
     adapter: userAdapter,
     query: { active: true },
@@ -84,11 +91,39 @@ export async function compileCoreReadmeExamples(pageInput: unknown, limitInput: 
   })
 
   const requestedPage = parsePage(pageInput)
+  const requestedOffset = parseOffset(offsetInput)
   const limit = parseLimit(limitInput, { maxLimit: 50 })
   const pagination = createPaginationMetadata({ page: requestedPage, limit, total: 95 })
   const page = resolvePage(requestedPage, 5)
   const offset = calculateOffset(page, limit)
   const pages = createPageWindow({ page: 5, totalPages: 20 })
+  const offsetResult = await paginateOffset({
+    adapter: userAdapter,
+    query: { active: true },
+    countQuery: { active: true },
+    offset: requestedOffset,
+    limit: limitInput,
+  })
+  const offsetPagination = createOffsetPaginationMetadata({
+    offset: requestedOffset,
+    limit,
+    total: 95,
+  })
+  const endpointResult = {
+    users: offsetResult.items,
+    total: offsetResult.pagination.total,
+    limit: offsetResult.pagination.limit,
+    offset: offsetResult.pagination.offset,
+  }
 
-  return { customResult, offset, pages, pagination, result }
+  return {
+    customResult,
+    endpointResult,
+    offset,
+    offsetPagination,
+    offsetResult,
+    pages,
+    pagination,
+    result,
+  }
 }

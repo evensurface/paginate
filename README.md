@@ -19,16 +19,18 @@ Use the core package with any database or ORM, or add the first-party Drizzle OR
 
 ## What it handles
 
-- Parses page and page-size values from URLs, forms, and API requests
+- Parses page, native-offset, and page-size values from URLs, forms, and API requests
 - Clamps page sizes to configurable minimum and maximum limits
 - Calculates safe SQL-style `limit` and `offset` values
 - Returns totals, page counts, item ranges, and next/previous-page flags
-- Resolves out-of-range requests to the last available page
+- Resolves out-of-range pages to the last page and preserves out-of-range native offsets
 - Generates compact navigation such as `1 … 4 5 6 … 20`
 - Preserves item types through generic and Drizzle-specific adapters
 
-This library implements **offset pagination**. It does not generate routes, render pagination UI,
-or prescribe a web framework.
+This library implements **offset pagination**. Use `paginate()` for numbered-page navigation or
+`paginateOffset()` when an API exposes a zero-based offset directly. Both functions use the same
+adapter and limit configuration. The library does not generate routes, render pagination UI, or
+prescribe a web framework.
 
 ## Quick start
 

@@ -10,8 +10,21 @@ export function isNonNegativeSafeInteger(value: unknown): value is number {
 
 /** Converts a number or decimal digit string into a positive, safe integer. */
 export function toPositiveSafeInteger(value: unknown): number | undefined {
-  if (isPositiveSafeInteger(value)) {
-    return value
+  const integer = toSafeInteger(value)
+
+  return integer !== undefined && integer > 0 ? integer : undefined
+}
+
+/** Converts a number or decimal digit string into a non-negative, safe integer. */
+export function toNonNegativeSafeInteger(value: unknown): number | undefined {
+  const integer = toSafeInteger(value)
+
+  return integer !== undefined && integer >= 0 ? integer : undefined
+}
+
+function toSafeInteger(value: unknown): number | undefined {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) ? value : undefined
   }
 
   if (typeof value !== "string") {
@@ -26,5 +39,5 @@ export function toPositiveSafeInteger(value: unknown): number | undefined {
 
   const parsed = Number(normalized)
 
-  return isPositiveSafeInteger(parsed) ? parsed : undefined
+  return Number.isSafeInteger(parsed) ? parsed : undefined
 }

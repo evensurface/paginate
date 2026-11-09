@@ -1,10 +1,16 @@
 import { annotatePaginationError, getPaginationErrorMessage } from "./errors"
 import { isNonNegativeSafeInteger } from "./integer"
 import { calculateOffset, resolvePage } from "./page"
-import type { PaginationMetadata, PaginationPageItem } from "./types"
+import type { OffsetPaginationMetadata, PaginationMetadata, PaginationPageItem } from "./types"
 
 export interface PaginationMetadataOptions {
   page: number
+  limit: number
+  total: number
+}
+
+export interface OffsetPaginationMetadataOptions {
+  offset: number
   limit: number
   total: number
 }
@@ -61,6 +67,43 @@ export function createPaginationMetadata({
     hasPreviousPage: resolvedPage > 1,
     firstItem,
     lastItem,
+  }
+}
+
+/**
+ * Creates metadata for native offset pagination.
+ *
+ * The requested offset is preserved, including when it is at or beyond
+ * the total number of matching records.
+ */
+export function createOffsetPaginationMetadata({
+  offset,
+  limit,
+  total,
+}: OffsetPaginationMetadataOptions): OffsetPaginationMetadata {
+  if (!isNonNegativeSafeInteger(total)) {
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_TOTAL")),
+      "INVALID_TOTAL",
+    )
+  }
+
+  // Reuse the established strict limit validation and error contract.
+  calculateOffset(1, limit)
+
+  if (!isNonNegativeSafeInteger(offset)) {
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_OFFSET")),
+      "INVALID_OFFSET",
+    )
+  }
+
+  return {
+    total,
+    limit,
+    offset,
+    hasNextPage: offset < total && limit < total - offset,
+    hasPreviousPage: offset > 0,
   }
 }
 

@@ -17,6 +17,10 @@ const paginationErrorDefinitions = {
     message: "Limit must be a positive safe integer.",
     ErrorConstructor: RangeError,
   },
+  INVALID_OFFSET: {
+    message: "Offset must be a non-negative safe integer.",
+    ErrorConstructor: RangeError,
+  },
   OFFSET_OVERFLOW: {
     message: "Calculated offset exceeds the maximum safe integer.",
     ErrorConstructor: RangeError,

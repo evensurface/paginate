@@ -1,8 +1,10 @@
 import {
+  type OffsetPaginatedResult,
   type PageSizeOptions,
   type PaginatedResult,
   type PaginationAdapter,
   paginate as paginateCore,
+  paginateOffset as paginateOffsetCore,
 } from "@evensurface/paginate"
 import { annotateDrizzlePaginationError, getDrizzlePaginationErrorMessage } from "./errors"
 
@@ -39,6 +41,16 @@ export interface DrizzlePaginationOptions<TItem> {
   /** A `$count()` or `select({ total: count() })` query matching `query` filters. */
   countQuery: DrizzleCountQuery
   page?: unknown
+  limit?: unknown
+  pageSizeOptions?: PageSizeOptions
+}
+
+export interface DrizzleOffsetPaginationOptions<TItem> {
+  /** Creates a deterministic select query. Include an `orderBy` with a unique tie-breaker. */
+  query: DrizzleSelectQueryFactory<TItem>
+  /** A `$count()` or `select({ total: count() })` query matching `query` filters. */
+  countQuery: DrizzleCountQuery
+  offset?: unknown
   limit?: unknown
   pageSizeOptions?: PageSizeOptions
 }
@@ -118,6 +130,28 @@ export function paginate<TItem>({
     query,
     countQuery,
     page,
+    limit,
+    pageSizeOptions,
+  })
+}
+
+/**
+ * Paginates a Drizzle select query using a zero-based offset and matching count query.
+ *
+ * The item type is inferred from the select query.
+ */
+export function paginateOffset<TItem>({
+  query,
+  countQuery,
+  offset,
+  limit,
+  pageSizeOptions,
+}: DrizzleOffsetPaginationOptions<TItem>): Promise<OffsetPaginatedResult<TItem>> {
+  return paginateOffsetCore({
+    adapter: createDrizzleAdapter<TItem>(),
+    query,
+    countQuery,
+    offset,
     limit,
     pageSizeOptions,
   })

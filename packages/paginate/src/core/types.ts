@@ -10,6 +10,14 @@ export interface PaginationMetadata {
   lastItem: number
 }
 
+export interface OffsetPaginationMetadata {
+  total: number
+  limit: number
+  offset: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+}
+
 export type PaginationPageItem = number | "ellipsis"
 
 import type { PageSizeOptions } from "./page"
@@ -31,7 +39,23 @@ export interface PaginationOptions<TQuery, TCountQuery, TItem> {
   pageSizeOptions?: PageSizeOptions
 }
 
+export interface OffsetPaginationOptions<TQuery, TCountQuery, TItem> {
+  adapter: PaginationAdapter<TQuery, TCountQuery, TItem>
+
+  query: TQuery
+  countQuery: TCountQuery
+
+  offset?: unknown
+  limit?: unknown
+  pageSizeOptions?: PageSizeOptions
+}
+
 export interface PaginatedResult<TItem> {
   items: TItem[]
   pagination: PaginationMetadata
+}
+
+export interface OffsetPaginatedResult<TItem> {
+  items: TItem[]
+  pagination: OffsetPaginationMetadata
 }

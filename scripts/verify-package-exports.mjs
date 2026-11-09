@@ -7,9 +7,11 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 const require = createRequire(import.meta.url)
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const privateCoreExports = [
+  "executeCountedOffsetPagination",
   "isNonNegativeSafeInteger",
   "isPositiveSafeInteger",
   "toPositiveSafeInteger",
+  "toNonNegativeSafeInteger",
 ]
 
 const packages = [
@@ -20,21 +22,40 @@ const packages = [
       "MAX_PAGE_SIZE",
       "MIN_PAGE_SIZE",
       "calculateOffset",
+      "createOffsetPaginationMetadata",
       "createPageWindow",
       "createPaginationMetadata",
       "isPaginationError",
       "paginate",
+      "paginateOffset",
       "parseLimit",
+      "parseOffset",
       "parsePage",
       "resolvePage",
     ],
-    expectedTypeExports: ["PaginationError", "PaginationErrorCode"],
+    expectedTypeExports: [
+      "OffsetPaginatedResult",
+      "OffsetPaginationMetadata",
+      "OffsetPaginationMetadataOptions",
+      "OffsetPaginationOptions",
+      "PaginationError",
+      "PaginationErrorCode",
+    ],
     privateExports: privateCoreExports,
   },
   {
     directory: "packages/adapter/drizzle",
-    expectedExports: ["createDrizzleAdapter", "isDrizzlePaginationError", "paginate"],
-    expectedTypeExports: ["DrizzlePaginationError", "DrizzlePaginationErrorCode"],
+    expectedExports: [
+      "createDrizzleAdapter",
+      "isDrizzlePaginationError",
+      "paginate",
+      "paginateOffset",
+    ],
+    expectedTypeExports: [
+      "DrizzleOffsetPaginationOptions",
+      "DrizzlePaginationError",
+      "DrizzlePaginationErrorCode",
+    ],
     privateExports: [],
   },
 ]

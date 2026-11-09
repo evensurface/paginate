@@ -11,7 +11,7 @@ with Drizzle ORM and Node.js.
 
 - Inferred item types from Drizzle partial selects and joins
 - Direct support for `db.$count()` and `select({ total: count() })`
-- Safe parsing of request `page` and `limit` values
+- Safe parsing of request `page`, `offset`, and `limit` values
 - Configurable minimum, default, and maximum page sizes
 - Totals, page counts, offsets, item ranges, and next/previous flags
 - One select execution per non-empty page and no select execution for empty results
@@ -97,6 +97,26 @@ The full result is ready for an API response or a rendered view:
   },
 }
 ```
+
+### Use a native offset
+
+Use `paginateOffset()` when the API exposes a zero-based `offset` directly:
+
+```ts
+import { paginateOffset } from "@evensurface/paginate-drizzle"
+
+const result = await paginateOffset({
+  query: () =>
+    db.select().from(users).where(where).orderBy(desc(users.createdAt), asc(users.id)),
+  countQuery: db.$count(users, where),
+  offset: request.query.offset,
+  limit: request.query.limit,
+})
+```
+
+The result contains `total`, `limit`, `offset`, `hasNextPage`, and `hasPreviousPage`. Arbitrary
+offsets are preserved. When the offset is at or beyond the count, the count query still executes
+but the select-query factory is not called.
 
 ## Count matching rows
 
@@ -273,8 +293,9 @@ const result = await paginate({
 })
 ```
 
-Page and limit values may come directly from URL query parameters. Invalid pages become page `1`.
-If the requested page is higher than the available range, it resolves to the last page.
+Page, offset, and limit values may come directly from URL query parameters. Invalid pages become
+page `1`, while invalid offsets become `0`. A page above the available range resolves to the last
+page; a native offset at or beyond the total remains unchanged and returns no items.
 
 ## Always use deterministic ordering
 
@@ -299,7 +320,7 @@ pagination state.
 
 ## Query execution behavior
 
-The adapter:
+For numbered pages, the adapter:
 
 1. Parses the requested page and limit, validating page-size configuration.
 2. Executes the count query.
@@ -309,6 +330,9 @@ The adapter:
 
 Resolving the page after counting means a request such as page `999` returns the real last page
 instead of an empty page.
+
+Native offset pagination uses the same count and select execution. It preserves the normalized
+offset and skips the select when the count proves that offset is out of range.
 
 The count and select are separate database statements. Rows can change between them unless the
 caller runs both through a transaction or another database-specific consistent-snapshot strategy.
@@ -339,8 +363,9 @@ planning, transactions, and entity-counting semantics with the application.
 
 ## Low-level adapter usage
 
-Most applications should import `paginate` from `@evensurface/paginate-drizzle`. For custom
-composition, use `createDrizzleAdapter<TItem>()` with the core package:
+Most applications should import `paginate` or `paginateOffset` from
+`@evensurface/paginate-drizzle`. For custom composition, use `createDrizzleAdapter<TItem>()` with
+the core package:
 
 ```ts
 import { paginate } from "@evensurface/paginate"
@@ -369,8 +394,8 @@ and joined result shapes.
 
 ### Can I pass URL query parameters directly?
 
-Yes. `page` and `limit` accept unknown input. Numeric strings are parsed, invalid pages fall back
-to `1`, and invalid limits use the configured default.
+Yes. `page`, `offset`, and `limit` accept unknown input. Numeric strings are parsed, invalid pages
+fall back to `1`, invalid offsets fall back to `0`, and invalid limits use the configured default.
 
 ### Why does pagination need a separate count query?
 
@@ -385,8 +410,8 @@ driver. It can be used wherever the queries satisfy those Drizzle interfaces.
 
 ### Does it support cursor pagination?
 
-No. It implements offset pagination for numbered-page navigation. Cursor pagination can be a
-better fit for large or frequently changing feeds.
+No. It implements numbered-page and native-offset pagination. Cursor pagination can be a better
+fit for large or frequently changing feeds.
 
 ## Related package
 

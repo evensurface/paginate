@@ -1,6 +1,11 @@
 packages:
+  - "demo"
   - "packages/*"
   - "packages/adapter/*"
 
 overrides:
   rolldown-plugin-dts: 0.28.7
+
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true

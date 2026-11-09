@@ -5,6 +5,10 @@
   "fixed": [["@evensurface/paginate", "@evensurface/paginate-drizzle"]],
   "linked": [],
   "access": "public",
+  "privatePackages": {
+    "version": false,
+    "tag": false
+  },
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": []

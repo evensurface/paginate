@@ -9,6 +9,7 @@
     "changeset": "changeset",
     "check": "biome check .",
     "check:fix": "biome check --write .",
+    "demo": "turbo run dev --filter=@evensurface/paginate-demo...",
     "dev": "turbo run dev",
     "format": "biome format --write .",
     "lint": "biome lint .",

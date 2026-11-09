@@ -1,3 +1,4 @@
+import { annotatePaginationError, getPaginationErrorMessage } from "./errors"
 import { isPositiveSafeInteger, toPositiveSafeInteger } from "./integer"
 
 /**
@@ -55,11 +56,17 @@ export function parseLimit(value: unknown, options: PageSizeOptions = {}): numbe
   } = options
 
   if (!isPositiveSafeInteger(minLimit) || !isPositiveSafeInteger(maxLimit) || minLimit > maxLimit) {
-    throw new RangeError("Invalid page size boundaries.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_PAGE_SIZE_BOUNDS")),
+      "INVALID_PAGE_SIZE_BOUNDS",
+    )
   }
 
   if (!isPositiveSafeInteger(defaultLimit) || defaultLimit < minLimit || defaultLimit > maxLimit) {
-    throw new RangeError("Default page size must be within the allowed range.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_DEFAULT_LIMIT")),
+      "INVALID_DEFAULT_LIMIT",
+    )
   }
 
   const limit = toPositiveSafeInteger(value) ?? defaultLimit
@@ -81,17 +88,26 @@ export function parseLimit(value: unknown, options: PageSizeOptions = {}): numbe
  */
 export function calculateOffset(page: number, limit: number): number {
   if (!isPositiveSafeInteger(page)) {
-    throw new RangeError("Page must be a positive safe integer.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_PAGE")),
+      "INVALID_PAGE",
+    )
   }
 
   if (!isPositiveSafeInteger(limit)) {
-    throw new RangeError("Limit must be a positive safe integer.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_LIMIT")),
+      "INVALID_LIMIT",
+    )
   }
 
   const offset = (page - 1) * limit
 
   if (!Number.isSafeInteger(offset)) {
-    throw new RangeError("Calculated offset exceeds the maximum safe integer.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("OFFSET_OVERFLOW")),
+      "OFFSET_OVERFLOW",
+    )
   }
 
   return offset
@@ -111,11 +127,17 @@ export function calculateOffset(page: number, limit: number): number {
  */
 export function resolvePage(page: number, totalPages: number): number {
   if (!isPositiveSafeInteger(page)) {
-    throw new RangeError("Page must be a positive safe integer.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_PAGE")),
+      "INVALID_PAGE",
+    )
   }
 
   if (!Number.isSafeInteger(totalPages) || totalPages < 0) {
-    throw new RangeError("Total pages must be a non-negative safe integer.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_TOTAL_PAGES")),
+      "INVALID_TOTAL_PAGES",
+    )
   }
 
   return totalPages === 0 ? 1 : Math.min(page, totalPages)

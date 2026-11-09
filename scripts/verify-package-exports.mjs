@@ -22,19 +22,32 @@ const packages = [
       "calculateOffset",
       "createPageWindow",
       "createPaginationMetadata",
+      "isPaginationError",
       "paginate",
       "parseLimit",
       "parsePage",
       "resolvePage",
     ],
+    expectedTypeExports: ["PaginationError", "PaginationErrorCode"],
     privateExports: privateCoreExports,
   },
   {
     directory: "packages/adapter/drizzle",
-    expectedExports: ["createDrizzleAdapter", "paginate"],
+    expectedExports: ["createDrizzleAdapter", "isDrizzlePaginationError", "paginate"],
+    expectedTypeExports: ["DrizzlePaginationError", "DrizzlePaginationErrorCode"],
     privateExports: [],
   },
 ]
+
+const declarationParserProbe = getDeclarationExports(
+  `
+    type Hidden = string
+    export type Direct = number
+    export { type Hidden as Aliased, type Direct }
+  `,
+  "declaration parser self-test",
+)
+assert.deepEqual([...declarationParserProbe].sort(), ["Aliased", "Direct"])
 
 for (const packageOptions of packages) {
   const packageDirectory = path.join(repositoryRoot, packageOptions.directory)
@@ -61,15 +74,81 @@ for (const packageOptions of packages) {
   )
 
   for (const declarationPath of [rootExport.import.types, rootExport.require.types]) {
-    const declarations = await readFile(path.resolve(packageDirectory, declarationPath), "utf8")
+    const resolvedDeclarationPath = path.resolve(packageDirectory, declarationPath)
+    const declarations = await readFile(resolvedDeclarationPath, "utf8")
+    const declarationExports = getDeclarationExports(declarations, resolvedDeclarationPath)
+
+    for (const expectedTypeExport of packageOptions.expectedTypeExports) {
+      assert.equal(
+        declarationExports.has(expectedTypeExport),
+        true,
+        `${manifest.name} declarations omit public type ${expectedTypeExport}`,
+      )
+    }
 
     for (const privateExport of packageOptions.privateExports) {
       assert.equal(
-        declarations.includes(privateExport),
+        declarationExports.has(privateExport),
         false,
         `${manifest.name} declarations expose private symbol ${privateExport}`,
       )
     }
+  }
+}
+
+function getDeclarationExports(declarations, declarationPath) {
+  const exportedNames = new Set()
+  const declarationPattern =
+    /\bexport\s+(?:declare\s+)?(?:abstract\s+)?(?:type|interface|class|function|const|let|var|enum|namespace)\s+([A-Za-z_$][\w$]*)/g
+  const exportListPattern = /\bexport\s+(?:type\s+)?\{([^}]*)\}/gs
+
+  for (const match of declarations.matchAll(declarationPattern)) {
+    exportedNames.add(match[1])
+  }
+
+  for (const match of declarations.matchAll(exportListPattern)) {
+    for (const specifier of match[1].split(",")) {
+      const normalized = specifier.trim().replace(/^type\s+/, "")
+      const exportedName = normalized
+        .split(/\s+as\s+/)
+        .at(-1)
+        ?.trim()
+
+      if (exportedName) {
+        exportedNames.add(exportedName)
+      }
+    }
+  }
+
+  assert.notEqual(exportedNames.size, 0, `Could not parse exports from ${declarationPath}`)
+
+  return exportedNames
+}
+
+const coreDirectory = path.join(repositoryRoot, "packages/paginate")
+const coreEsm = await import(pathToFileURL(path.join(coreDirectory, "dist/index.mjs")))
+const coreCjs = require(path.join(coreDirectory, "dist/index.cjs"))
+
+for (const [createError, recognizeError] of [
+  [() => coreEsm.calculateOffset(0, 1), coreCjs.isPaginationError],
+  [() => coreCjs.calculateOffset(0, 1), coreEsm.isPaginationError],
+]) {
+  assert.throws(createError, (error) => recognizeError(error))
+}
+
+const drizzleDirectory = path.join(repositoryRoot, "packages/adapter/drizzle")
+const drizzleEsm = await import(pathToFileURL(path.join(drizzleDirectory, "dist/index.mjs")))
+const drizzleCjs = require(path.join(drizzleDirectory, "dist/index.cjs"))
+
+for (const [createAdapter, recognizeError] of [
+  [drizzleEsm.createDrizzleAdapter, drizzleCjs.isDrizzlePaginationError],
+  [drizzleCjs.createDrizzleAdapter, drizzleEsm.isDrizzlePaginationError],
+]) {
+  try {
+    await createAdapter().count(Promise.resolve(-1))
+    assert.fail("Expected the Drizzle adapter to reject an invalid count.")
+  } catch (error) {
+    assert.equal(recognizeError(error), true)
   }
 }
 

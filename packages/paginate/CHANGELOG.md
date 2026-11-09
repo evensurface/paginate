@@ -1,5 +1,12 @@
 # @evensurface/paginate
 
+## 1.1.0
+
+### Minor Changes
+
+- Add stable, type-safe codes and package-specific type guards to library-authored pagination errors
+  while preserving their native constructors, messages, and propagation behavior.
+
 ## 1.0.2
 
 ### Patch Changes

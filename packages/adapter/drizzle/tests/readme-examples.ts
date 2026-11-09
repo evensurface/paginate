@@ -1,8 +1,8 @@
-import { paginate as paginateCore } from "@evensurface/paginate"
+import { isPaginationError, paginate as paginateCore } from "@evensurface/paginate"
 import { and, asc, count, desc, eq, ilike } from "drizzle-orm"
 import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core"
 import { drizzle } from "drizzle-orm/pg-proxy"
-import { createDrizzleAdapter, paginate } from "../src/index"
+import { createDrizzleAdapter, isDrizzlePaginationError, paginate } from "../src/index"
 
 const teams = pgTable("readme_teams", {
   id: integer().notNull(),
@@ -18,6 +18,22 @@ const users = pgTable("readme_users", {
 })
 
 const db = drizzle(async () => ({ rows: [] }))
+
+/** Compile-checked counterpart of the README error-handling example. */
+export function handleDrizzlePaginationError(error: unknown): never {
+  if (isDrizzlePaginationError(error)) {
+    switch (error.code) {
+      case "DRIZZLE_INVALID_COUNT_ROWS":
+      case "DRIZZLE_INVALID_COUNT":
+      case "DRIZZLE_QUERY_REUSED":
+        break
+    }
+  } else if (isPaginationError(error)) {
+    // Handle a core pagination validation error.
+  }
+
+  throw error
+}
 
 /** Compile-checked counterparts of the public Drizzle README examples. */
 export async function compileDrizzleReadmeExamples(page: unknown, limit: unknown, search?: string) {

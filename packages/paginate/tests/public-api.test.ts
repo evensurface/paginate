@@ -2,6 +2,8 @@ import { describe, expect, expectTypeOf, it } from "vitest"
 import type {
   PaginatedResult,
   PaginationAdapter,
+  PaginationError,
+  PaginationErrorCode,
   PaginationMetadata,
   PaginationOptions,
   PaginationPageItem,
@@ -17,6 +19,7 @@ describe("public API", () => {
       "calculateOffset",
       "createPageWindow",
       "createPaginationMetadata",
+      "isPaginationError",
       "paginate",
       "parseLimit",
       "parsePage",
@@ -31,5 +34,6 @@ describe("public API", () => {
     expectTypeOf<PaginationOptions<string, number, boolean>["adapter"]>().toEqualTypeOf<
       PaginationAdapter<string, number, boolean>
     >()
+    expectTypeOf<PaginationError["code"]>().toEqualTypeOf<PaginationErrorCode>()
   })
 })

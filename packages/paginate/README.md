@@ -162,6 +162,38 @@ const result = await paginate({
 `defaultLimit` must fall between `minLimit` and `maxLimit`. Invalid configuration throws a
 `RangeError` so configuration mistakes are caught instead of silently accepted.
 
+## Handle pagination errors
+
+Errors created by this package remain native `RangeError` instances with their existing messages.
+They also expose a non-enumerable, read-only `code` and can be narrowed with
+`isPaginationError`:
+
+```ts
+import { isPaginationError } from "@evensurface/paginate"
+
+function handlePaginationError(error: unknown): never {
+  if (isPaginationError(error)) {
+    switch (error.code) {
+      case "INVALID_DEFAULT_LIMIT":
+        // Correct the page-size configuration.
+        break
+      case "OFFSET_OVERFLOW":
+        // Handle an unsafe direct offset calculation.
+        break
+    }
+  }
+
+  throw error
+}
+```
+
+`PaginationErrorCode` contains the nine stable core codes, and `PaginationError` describes the
+narrowed native error. The guard rejects ordinary errors and errors authored by adapters. It works
+across duplicate ESM and CommonJS package instances in the same JavaScript realm. It intentionally
+does not recognize errors created with another realm's native error constructors or errors that
+have lost their properties through serialization or structured cloning. The marker is intended for
+identification, not as a security boundary against deliberately forged objects.
+
 ## Create a pagination adapter
 
 Use separate query types when your data source needs different inputs for counting and fetching:

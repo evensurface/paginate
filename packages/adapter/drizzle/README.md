@@ -140,6 +140,40 @@ The count select must return exactly one row with a non-negative safe-integer `t
 unsafe count results throw a `RangeError`, since they indicate an invalid count or usually an
 incorrectly grouped aggregate.
 
+## Handle Drizzle pagination errors
+
+Adapter-authored errors retain their existing native `RangeError` or `TypeError` constructor and
+message. Use `isDrizzlePaginationError` to narrow them by stable code. Core validation errors remain
+owned by `@evensurface/paginate`, so applications that handle both categories should use both
+package guards:
+
+```ts
+import { isPaginationError } from "@evensurface/paginate"
+import { isDrizzlePaginationError } from "@evensurface/paginate-drizzle"
+
+function handleDrizzlePaginationError(error: unknown): never {
+  if (isDrizzlePaginationError(error)) {
+    switch (error.code) {
+      case "DRIZZLE_INVALID_COUNT_ROWS":
+      case "DRIZZLE_INVALID_COUNT":
+      case "DRIZZLE_QUERY_REUSED":
+        // Handle an adapter contract violation.
+        break
+    }
+  } else if (isPaginationError(error)) {
+    // Handle a core pagination validation error.
+  }
+
+  throw error
+}
+```
+
+Database, query-factory, and query-builder failures continue to propagate unchanged and are not
+classified as pagination errors. `DrizzlePaginationErrorCode` contains the three adapter codes.
+The guard supports duplicate ESM and CommonJS package instances in the same realm, but not errors
+created with another realm's native constructors or errors altered by serialization or structured
+cloning. Its marker is an identification convention, not a security boundary.
+
 ## Add search and optional filters
 
 Build the select and count queries from the same conditions. Drizzle's dynamic query mode is useful

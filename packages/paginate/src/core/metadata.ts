@@ -1,3 +1,4 @@
+import { annotatePaginationError, getPaginationErrorMessage } from "./errors"
 import { isNonNegativeSafeInteger } from "./integer"
 import { calculateOffset, resolvePage } from "./page"
 import type { PaginationMetadata, PaginationPageItem } from "./types"
@@ -34,7 +35,10 @@ export function createPaginationMetadata({
   total,
 }: PaginationMetadataOptions): PaginationMetadata {
   if (!isNonNegativeSafeInteger(total)) {
-    throw new RangeError("Total must be a non-negative safe integer.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_TOTAL")),
+      "INVALID_TOTAL",
+    )
   }
 
   // Validate the limit independently so an out-of-range page can be
@@ -87,15 +91,24 @@ export function createPageWindow({
   boundaries = 1,
 }: PageWindowOptions): PaginationPageItem[] {
   if (!isNonNegativeSafeInteger(totalPages)) {
-    throw new RangeError("Total pages must be a non-negative safe integer.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_TOTAL_PAGES")),
+      "INVALID_TOTAL_PAGES",
+    )
   }
 
   if (!Number.isSafeInteger(siblings) || siblings < 0) {
-    throw new RangeError("Siblings must be a non-negative safe integer.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_SIBLINGS")),
+      "INVALID_SIBLINGS",
+    )
   }
 
   if (!Number.isSafeInteger(boundaries) || boundaries < 1) {
-    throw new RangeError("Boundaries must be a positive safe integer.")
+    throw annotatePaginationError(
+      new RangeError(getPaginationErrorMessage("INVALID_BOUNDARIES")),
+      "INVALID_BOUNDARIES",
+    )
   }
 
   const currentPage = resolvePage(page, totalPages)

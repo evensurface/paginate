@@ -27,7 +27,11 @@ function createSelectQuery<TItem>(items: TItem[]) {
 describe("createDrizzleAdapter", () => {
   it("exposes the existing runtime surface only", async () => {
     const api = await import("../src/index")
-    expect(Object.keys(api).sort()).toEqual(["createDrizzleAdapter", "paginate"])
+    expect(Object.keys(api).sort()).toEqual([
+      "createDrizzleAdapter",
+      "isDrizzlePaginationError",
+      "paginate",
+    ])
   })
 
   it("applies the limit and offset to a Drizzle-shaped query", async () => {
@@ -280,10 +284,37 @@ describe("paginate", () => {
     const countQuery = Promise.resolve(1)
 
     await paginate({ query: createQuery, countQuery })
-    await expect(paginate({ query: createQuery, countQuery })).rejects.toThrow(
-      "Drizzle query factory must return a fresh select query.",
-    )
+    const result = paginate({ query: createQuery, countQuery })
+    await expect(result).rejects.toBeInstanceOf(TypeError)
+    const error = await result.catch((caught: unknown) => caught)
+    expect((error as Error).constructor).toBe(TypeError)
+    expect(error).toMatchObject({
+      name: "TypeError",
+      message: "Drizzle query factory must return a fresh select query.",
+    })
     expect(limit).toHaveBeenCalledOnce()
+  })
+
+  it("records a query builder before applying its limit", async () => {
+    const limitError = new Error("limit failed")
+    const query = {
+      limit: vi.fn(() => {
+        throw limitError
+      }),
+    }
+    const createQuery = () => query
+    const countQuery = Promise.resolve(1)
+
+    await expect(paginate({ query: createQuery, countQuery })).rejects.toBe(limitError)
+    const error = await paginate({ query: createQuery, countQuery }).catch(
+      (caught: unknown) => caught,
+    )
+    expect((error as Error).constructor).toBe(TypeError)
+    expect(error).toMatchObject({
+      name: "TypeError",
+      message: "Drizzle query factory must return a fresh select query.",
+    })
+    expect(query.limit).toHaveBeenCalledOnce()
   })
 
   it("executes PostgreSQL count and select builders with pagination SQL", async () => {

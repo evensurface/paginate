@@ -2,6 +2,7 @@ import {
   calculateOffset,
   createPageWindow,
   createPaginationMetadata,
+  isPaginationError,
   type PaginationAdapter,
   paginate,
   parseLimit,
@@ -12,6 +13,20 @@ import {
 type User = {
   id: number
   name: string
+}
+
+/** Compile-checked counterpart of the README error-handling example. */
+export function handlePaginationError(error: unknown): never {
+  if (isPaginationError(error)) {
+    switch (error.code) {
+      case "INVALID_DEFAULT_LIMIT":
+        break
+      case "OFFSET_OVERFLOW":
+        break
+    }
+  }
+
+  throw error
 }
 
 type UserFilter = {

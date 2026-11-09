@@ -4,6 +4,10 @@ import {
   type PaginationAdapter,
   paginate as paginateCore,
 } from "@evensurface/paginate"
+import { annotateDrizzlePaginationError, getDrizzlePaginationErrorMessage } from "./errors"
+
+export type { DrizzlePaginationError, DrizzlePaginationErrorCode } from "./errors"
+export { isDrizzlePaginationError } from "./errors"
 
 /** A Drizzle select query before pagination has been applied. */
 export interface DrizzleSelectQuery<TItem> {
@@ -59,7 +63,10 @@ export function createDrizzleAdapter<TItem>(): PaginationAdapter<
       const total = typeof result === "number" ? result : getCountTotal(result)
 
       if (!Number.isSafeInteger(total) || total < 0) {
-        throw new RangeError("Drizzle count query must return a non-negative safe integer.")
+        throw annotateDrizzlePaginationError(
+          new RangeError(getDrizzlePaginationErrorMessage("DRIZZLE_INVALID_COUNT")),
+          "DRIZZLE_INVALID_COUNT",
+        )
       }
 
       return total
@@ -68,7 +75,10 @@ export function createDrizzleAdapter<TItem>(): PaginationAdapter<
       const query = createQuery()
 
       if (paginatedQueries.has(query)) {
-        throw new TypeError("Drizzle query factory must return a fresh select query.")
+        throw annotateDrizzlePaginationError(
+          new TypeError(getDrizzlePaginationErrorMessage("DRIZZLE_QUERY_REUSED")),
+          "DRIZZLE_QUERY_REUSED",
+        )
       }
 
       paginatedQueries.add(query)
@@ -82,7 +92,10 @@ function getCountTotal(result: readonly DrizzleCountRow[]): number {
   const row = result[0]
 
   if (result.length !== 1 || !row) {
-    throw new RangeError("Drizzle count query must return exactly one row.")
+    throw annotateDrizzlePaginationError(
+      new RangeError(getDrizzlePaginationErrorMessage("DRIZZLE_INVALID_COUNT_ROWS")),
+      "DRIZZLE_INVALID_COUNT_ROWS",
+    )
   }
 
   return row.total

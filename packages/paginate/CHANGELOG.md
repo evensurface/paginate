@@ -1,5 +1,11 @@
 # @evensurface/paginate
 
+## 1.0.2
+
+### Patch Changes
+
+- 88407ee: Refactor internal integer parsing and validation utilities without changing public behavior.
+
 ## 1.0.1
 
 ### Patch Changes

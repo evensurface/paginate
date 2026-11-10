@@ -1,0 +1,451 @@
+---
+title: Core Type Reference
+description: Full public TypeScript types in @evensurface/paginate, with field-by-field explanations.
+---
+
+This page shows the public types exported by **`@evensurface/paginate`**. You can import them from the package root:
+
+```ts
+import type {
+  PaginationAdapter,
+  PaginationOptions,
+  PaginatedResult,
+  PaginationMetadata,
+} from "@evensurface/paginate"
+```
+
+Each type below has its **actual TypeScript shape** and an explanation of what its fields mean. The names `TQuery`, `TCountQuery`, and `TItem` are **generic type parameters**: placeholders you replace with your own query/filter and row types. They are not special classes provided by Paginate.
+
+## Common inputs
+
+### `PaginationInput`
+
+```ts
+type PaginationInput = string | number
+```
+
+This is the type accepted by optional `page`, `offset`, and `limit` inputs. Strings are useful because URL query parameters normally arrive as text.
+
+Examples: `2`, `"2"`, and `" 2 "` can be parsed as valid integers. An invalid value such as `"abc"` uses the relevant fallback. This type does **not** include `undefined`, but the function properties accepting it are optional (`page?: PaginationInput`), so omitting them is allowed.
+
+See [Input Helpers](/docs/api-reference#input-helpers) for the exact parsing rules.
+
+### `PageSizeOptions`
+
+```ts
+interface PageSizeOptions {
+  defaultLimit?: number
+  minLimit?: number
+  maxLimit?: number
+}
+```
+
+| Field | Type | Default | Explanation |
+| --- | --- | --- | --- |
+| `defaultLimit` | `number` | `20` | Used if the caller doesn't supply a valid limit. |
+| `minLimit` | `number` | `1` | Smallest valid limit; smaller valid values are raised to this. |
+| `maxLimit` | `number` | `100` | Largest valid limit; larger valid values are reduced to this. |
+
+All values, when provided, must be positive safe integers, and `minLimit <= defaultLimit <= maxLimit`. For example:
+
+```ts
+const pageSizeOptions: PageSizeOptions = {
+  defaultLimit: 25,
+  minLimit: 5,
+  maxLimit: 200,
+}
+```
+
+## Adapter types
+
+### `PaginationAdapter`
+
+```ts
+interface PaginationAdapter<TQuery, TCountQuery, TItem> {
+  fetch(query: TQuery, options: { limit: number; offset: number }): Promise<TItem[]>
+  count(query: TCountQuery): Promise<number>
+}
+```
+
+This is the adapter for **numbered pages and native offsets**.
+
+| Part | Meaning |
+| --- | --- |
+| `TQuery` | Type of the filters/options passed to `fetch()`. |
+| `TCountQuery` | Type of the filters passed to `count()`. |
+| `TItem` | Type of each returned row. |
+| `fetch(query, { limit, offset })` | Gets one slice of matching items and returns an array inside a Promise. |
+| `count(query)` | Counts all matching rows and returns a non-negative safe integer inside a Promise. |
+
+Example: `PaginationAdapter<{ active: boolean }, { active: boolean }, User>` represents an adapter that filters users and returns `User[]`. `paginate()` calls `count()` first and then `fetch()` if rows exist. See [Build Your Own Adapter](/docs/adapters/create-your-own) for a full implementation.
+
+### `CursorPaginationAdapter`
+
+```ts
+interface CursorPaginationAdapter<TQuery, TItem> {
+  fetch(
+    query: TQuery,
+    options: { position: CursorPosition | undefined; limit: number },
+  ): Promise<TItem[]>
+
+  getPosition(item: TItem): CursorPosition
+}
+```
+
+This adapter is for **forward-only cursor pagination**. It does not have a `count()` method.
+
+| Part | Meaning |
+| --- | --- |
+| `TQuery` | Filter/options type used on each request. |
+| `TItem` | Type of each returned item. |
+| `position` | A decoded [`CursorPosition`](#cursorposition), or `undefined` on the first request. |
+| `limit` | Maximum number of rows the adapter must fetch. The core passes **requested limit + 1** for lookahead. |
+| `fetch()` | Fetches rows **after** the supplied position. |
+| `getPosition()` | Reads the sort keys from a returned row so Paginate can generate the next cursor. |
+
+The adapter must enforce a stable order that matches `getPosition()`. See the [cursor guide](/docs/guides/cursor-pagination).
+
+## Pagination function option types
+
+### `PaginationOptions`
+
+```ts
+interface PaginationOptions<TQuery, TCountQuery, TItem> {
+  adapter: PaginationAdapter<TQuery, TCountQuery, TItem>
+  query: TQuery
+  countQuery: TCountQuery
+  page?: PaginationInput
+  limit?: PaginationInput
+  pageSizeOptions?: PageSizeOptions
+}
+```
+
+Passed to [`paginate()`](/docs/guides/page-pagination).
+
+| Field | Required? | Meaning |
+| --- | --- | --- |
+| `adapter` | Yes | The count-and-fetch adapter. |
+| `query` | Yes | Input to `adapter.fetch()`—your filters/sort options. |
+| `countQuery` | Yes | Input to `adapter.count()`—matching filters. |
+| `page` | No | One-based page number; defaults to 1. |
+| `limit` | No | Maximum rows per page; defaults to 20 and is bounded by page-size settings. |
+| `pageSizeOptions` | No | Optional limit policy. |
+
+It returns a [`PaginatedResult<TItem>`](#paginatedresult).
+
+### `OffsetPaginationOptions`
+
+```ts
+interface OffsetPaginationOptions<TQuery, TCountQuery, TItem> {
+  adapter: PaginationAdapter<TQuery, TCountQuery, TItem>
+  query: TQuery
+  countQuery: TCountQuery
+  offset?: PaginationInput
+  limit?: PaginationInput
+  pageSizeOptions?: PageSizeOptions
+}
+```
+
+Passed to [`paginateOffset()`](/docs/guides/offset-pagination). It has the same adapter, query, count query, and limit options as `PaginationOptions`. The only main difference is **`offset` instead of `page`**.
+
+| Field | Required? | Meaning |
+| --- | --- | --- |
+| `adapter` | Yes | The count-and-fetch adapter. |
+| `query` | Yes | Filters and options sent to `fetch()`. |
+| `countQuery` | Yes | Filters sent to `count()`. |
+| `offset` | No | Number of matching rows to skip; defaults to 0 and is not clamped to the total. |
+| `limit` | No | Maximum rows to fetch, with the same default and boundaries. |
+| `pageSizeOptions` | No | Optional limit policy. |
+
+It returns an [`OffsetPaginatedResult<TItem>`](#offsetpaginatedresult).
+
+### `CursorPaginationOptions`
+
+```ts
+interface CursorPaginationOptions<TQuery, TItem> {
+  adapter: CursorPaginationAdapter<TQuery, TItem>
+  query: TQuery
+  cursor?: string
+  limit?: PaginationInput
+  pageSizeOptions?: PageSizeOptions
+}
+```
+
+Passed to [`paginateCursor()`](/docs/guides/cursor-pagination).
+
+| Field | Required? | Meaning |
+| --- | --- | --- |
+| `adapter` | Yes | Your cursor fetch-and-position adapter. |
+| `query` | Yes | Filters passed to `fetch()` on every request. |
+| `cursor` | No | The previous response's `nextCursor` string. Omit for the first page. |
+| `limit` | No | Maximum rows returned; the adapter fetches one extra to check for another batch. |
+| `pageSizeOptions` | No | Optional limit policy. |
+
+An invalid **supplied cursor** throws an error; it doesn't use a fallback. There is no count query and no numeric offset in this type. It returns a [`CursorPaginatedResult<TItem>`](#cursorpaginatedresult).
+
+## Result types
+
+### `PaginatedResult`
+
+```ts
+interface PaginatedResult<TItem> {
+  items: TItem[]
+  pagination: PaginationMetadata
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `items` | `TItem[]` | Selected rows for the requested numbered page. |
+| `pagination` | [`PaginationMetadata`](#paginationmetadata) | Page, total, page count, row positions, and navigation flags. |
+
+If `TItem` is `User`, `items` is `User[]`.
+
+### `OffsetPaginatedResult`
+
+```ts
+interface OffsetPaginatedResult<TItem> {
+  items: TItem[]
+  pagination: OffsetPaginationMetadata
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `items` | `TItem[]` | Rows returned starting after the requested skip amount. |
+| `pagination` | [`OffsetPaginationMetadata`](#offsetpaginationmetadata) | Offset, limit, total, and navigation flags. |
+
+### `CursorPaginatedResult`
+
+```ts
+interface CursorPaginatedResult<TItem> {
+  items: TItem[]
+  pagination: CursorPaginationMetadata
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `items` | `TItem[]` | The next batch, with the lookahead row removed. |
+| `pagination` | [`CursorPaginationMetadata`](#cursorpaginationmetadata) | Normalized limit, next cursor, and whether more rows exist. |
+
+## Metadata types
+
+### `PaginationMetadata`
+
+```ts
+interface PaginationMetadata {
+  page: number
+  limit: number
+  offset: number
+  total: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+  firstItem: number
+  lastItem: number
+}
+```
+
+Used by numbered page results. For 95 rows, page 2, limit 20:
+
+| Field | Type | Example | Meaning |
+| --- | --- | --- | --- |
+| `page` | `number` | `2` | The resolved one-based page (may be clamped to the last page). |
+| `limit` | `number` | `20` | Maximum rows requested for the page. |
+| `offset` | `number` | `20` | Number of matching rows skipped. |
+| `total` | `number` | `95` | Total number of matching rows across all pages. |
+| `totalPages` | `number` | `5` | `Math.ceil(total / limit)`; `0` for an empty list. |
+| `hasNextPage` | `boolean` | `true` | Whether a later numbered page exists. |
+| `hasPreviousPage` | `boolean` | `true` | Whether an earlier numbered page exists. |
+| `firstItem` | `number` | `21` | One-based position of the first expected item. `0` when total is zero. |
+| `lastItem` | `number` | `40` | One-based position of the last possible item on this page. `0` when total is zero. |
+
+These are **positions**, not database IDs. They're calculated from `total`, `page`, and `limit`, not by inspecting the returned array.
+
+### `OffsetPaginationMetadata`
+
+```ts
+interface OffsetPaginationMetadata {
+  total: number
+  limit: number
+  offset: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+}
+```
+
+Used by native offset results. For `total: 95`, `offset: 40`, `limit: 20`:
+
+| Field | Type | Example | Meaning |
+| --- | --- | --- | --- |
+| `total` | `number` | `95` | Total matching rows. |
+| `limit` | `number` | `20` | Maximum rows requested. |
+| `offset` | `number` | `40` | Rows skipped; kept even when beyond the total. |
+| `hasNextPage` | `boolean` | `true` | Whether the count indicates rows beyond this requested batch. |
+| `hasPreviousPage` | `boolean` | `true` | Whether `offset > 0`; not necessarily proof the immediately preceding batch is non-empty. |
+
+### `CursorPaginationMetadata`
+
+```ts
+interface CursorPaginationMetadata {
+  limit: number
+  nextCursor: string | null
+  hasNextPage: boolean
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `limit` | `number` | Maximum rows returned (after page-size normalization). |
+| `nextCursor` | `string \| null` | Token to supply to the next request. `null` if no further batch was found. |
+| `hasNextPage` | `boolean` | Whether a lookahead row exists beyond `limit` rows. |
+
+Cursor results **do not have** `total`, `totalPages`, or a previous cursor.
+
+## Cursor building blocks
+
+### `CursorDirection`
+
+```ts
+type CursorDirection = "asc" | "desc"
+```
+
+`"asc"` means ascending order (smallest/oldest first); `"desc"` means descending (largest/newest first). Your keyset comparison must match this direction.
+
+### `CursorValue`
+
+```ts
+type CursorValue = string | number | bigint | Date
+```
+
+The allowed value of one cursor key. At runtime, numeric values must be finite, dates must be valid, and keys cannot be null. Bigints and Dates are serialized into the cursor token and recovered with their types when decoded.
+
+### `CursorKey`
+
+```ts
+interface CursorKey {
+  key: string
+  direction: CursorDirection
+  value: CursorValue
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `key` | `string` | Stable, unique key name, such as `"createdAt"`. |
+| `direction` | [`CursorDirection`](#cursordirection) | Ascending or descending sort direction. |
+| `value` | [`CursorValue`](#cursorvalue) | This row's actual value for that sort key. |
+
+### `CursorPosition`
+
+```ts
+type CursorPosition = readonly [CursorKey, ...CursorKey[]]
+```
+
+A **non-empty** ordered tuple of [`CursorKey`](#cursorkey) values. The `readonly` keyword means the tuple isn't meant to be mutated after construction. Key names must not repeat.
+
+Example for a post with `createdAt DESC, id DESC` ordering:
+
+```ts
+const position: CursorPosition = [
+  { key: "createdAt", direction: "desc", value: new Date("2026-11-10T00:00:00Z") },
+  { key: "id", direction: "desc", value: 42 },
+]
+```
+
+Your adapter returns this from `getPosition(item)`. The core turns it into an opaque token; the adapter receives a decoded position on the next request. See [Cursor Pagination](/docs/guides/cursor-pagination).
+
+## Standalone helper types
+
+### `PaginationMetadataOptions`
+
+```ts
+interface PaginationMetadataOptions {
+  page: number
+  limit: number
+  total: number
+}
+```
+
+Passed to [`createPaginationMetadata()`](/docs/api-reference#createpaginationmetadataoptions). All three fields are required. `page` and `limit` must be positive safe integers; `total` must be a non-negative safe integer. A page beyond the last page is clamped.
+
+### `OffsetPaginationMetadataOptions`
+
+```ts
+interface OffsetPaginationMetadataOptions {
+  offset: number
+  limit: number
+  total: number
+}
+```
+
+Passed to [`createOffsetPaginationMetadata()`](/docs/api-reference#createoffsetpaginationmetadataoptions). All fields are required. `offset` and `total` must be non-negative safe integers; `limit` must be positive. The offset is not clamped.
+
+### `PageWindowOptions`
+
+```ts
+interface PageWindowOptions {
+  page: number
+  totalPages: number
+  siblings?: number
+  boundaries?: number
+}
+```
+
+Passed to [`createPageWindow()`](/docs/guides/page-pagination#build-page-number-buttons).
+
+| Field | Type | Required? | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `page` | `number` | Yes | — | Current positive page number. |
+| `totalPages` | `number` | Yes | — | Total non-negative page count. |
+| `siblings` | `number` | No | `1` | Number of page buttons on either side of current page; may be 0. |
+| `boundaries` | `number` | No | `1` | Number of page buttons always shown at each end; at least 1. |
+
+### `PaginationPageItem`
+
+```ts
+type PaginationPageItem = number | "ellipsis"
+```
+
+The type of each value returned by `createPageWindow()`. A number means a page link; `"ellipsis"` means a visual gap, not a page to navigate to.
+
+## Core error types
+
+### `PaginationError`
+
+```ts
+type PaginationError = RangeError & {
+  readonly code: PaginationErrorCode
+}
+```
+
+A normal JavaScript `RangeError` with a read-only `code` property. Use `isPaginationError(value)` to narrow an unknown caught error to this type.
+
+### `PaginationErrorCode`
+
+This type is a union of the core error codes. In the implementation it's derived from the core error-definition object; the following union shows all its possible values:
+
+```ts
+type PaginationErrorCode =
+  | "INVALID_PAGE_SIZE_BOUNDS"
+  | "INVALID_DEFAULT_LIMIT"
+  | "INVALID_PAGE"
+  | "INVALID_LIMIT"
+  | "INVALID_OFFSET"
+  | "OFFSET_OVERFLOW"
+  | "INVALID_TOTAL"
+  | "INVALID_TOTAL_PAGES"
+  | "INVALID_SIBLINGS"
+  | "INVALID_BOUNDARIES"
+  | "INVALID_CURSOR"
+  | "UNSUPPORTED_CURSOR_VERSION"
+  | "INVALID_CURSOR_POSITION"
+  | "CURSOR_LIMIT_OVERFLOW"
+```
+
+See [Errors](/docs/api-reference/errors) for when each code is raised and how to handle it.
+
+---
+
+Looking for the adapter-specific types, including Drizzle query builders and `DrizzleCursorOrderEntry`? See [Drizzle Type Reference](/docs/api-reference/drizzle-types).

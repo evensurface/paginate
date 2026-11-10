@@ -1,0 +1,185 @@
+---
+title: Quick Start
+description: Install Paginate and fetch your first page with Drizzle ORM—no custom adapter required.
+---
+
+If you already use **Drizzle ORM**, you can start paginating immediately. You **do not need to create an adapter**, write a `count()` function, or work out offsets yourself. The Drizzle integration handles those details.
+
+We'll fetch page 2 of a `users` table, see exactly what each input means, and examine the result.
+
+## 1. Install
+
+```bash
+pnpm add @evensurface/paginate @evensurface/paginate-drizzle drizzle-orm
+```
+
+Or with npm:
+
+```bash
+npm install @evensurface/paginate @evensurface/paginate-drizzle drizzle-orm
+```
+
+The packages have different jobs:
+
+| Package | Why you need it |
+| --- | --- |
+| `@evensurface/paginate` | The pagination engine: limits, page calculations, cursors, and metadata. |
+| `@evensurface/paginate-drizzle` | The ready-made Drizzle integration. It connects the engine to Drizzle queries. |
+| `drizzle-orm` | Drizzle itself. You likely already have this in your app. |
+
+**Before continuing:** You need an existing Drizzle database connection (`db`) and a table (`users`). We'll import them from `./db` and `./schema`, which are example paths in *your project*, **not files supplied by Paginate**. If you're just starting with Drizzle, set up your database and table first.
+
+## 2. Fetch your first page
+
+```ts
+import { asc } from "drizzle-orm"
+import { paginate } from "@evensurface/paginate-drizzle"
+import { db } from "./db"         // Your existing Drizzle database
+import { users } from "./schema" // Your existing users table
+
+const result = await paginate({
+  query: () =>
+    db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .orderBy(asc(users.id)),
+  countQuery: db.$count(users),
+  page: 2,
+  limit: 2,
+})
+```
+
+That's the whole pagination call. **There is no `adapter` field.** The `paginate()` function imported from `@evensurface/paginate-drizzle` already knows how to work with Drizzle.
+
+### What you're passing in
+
+| Input | What it is | What it does |
+| --- | --- | --- |
+| `query` | A **function that returns a Drizzle select query** | Describes the rows to fetch, and their order. Paginate calls it and adds the correct `LIMIT` and `OFFSET`. |
+| `countQuery` | `db.$count(users)` | Counts how many rows match, so Paginate can calculate the number of pages. |
+| `page` | `2` | Requests the **second** page. Page numbering starts at 1. |
+| `limit` | `2` | Requests **up to two** users per page. |
+
+The full input type is [`DrizzlePaginationOptions<TItem>`](/docs/api-reference/drizzle-types#drizzlepaginationoptions). The optional [`pageSizeOptions`](/docs/api-reference/types#pagesizeoptions) lets you change the default and maximum page sizes.
+
+**Why write `query: () => ...` instead of `query: db.select()...`?** The `() =>` makes a *function*. Paginate calls that function when it's ready to fetch and gets a **fresh** Drizzle query each time. It then applies the page's limit and offset. You describe *which users* and *how they're sorted*; Paginate supplies *how many to take and skip*.
+
+**Why `orderBy(asc(users.id))`?** A page must have a predictable order. Sorting by a unique ID means that page 2 follows page 1 consistently. If you prefer newest-first ordering, you can use a date and a unique ID as a tie-breaker.
+
+## 3. See the output
+
+Imagine your database contains **five** users, ordered by ID:
+
+| Position | ID | Name |
+| --- | ---: | --- |
+| 1 | 1 | Ava |
+| 2 | 2 | Ben |
+| 3 | 3 | Grace |
+| 4 | 4 | Maya |
+| 5 | 5 | Noah |
+
+We requested **page 2**, with **2 users per page**. So Paginate does this:
+
+1. Counts the users: `total = 5`.
+2. Works out the offset: `(page - 1) × limit = (2 - 1) × 2 = 2`.
+3. Fetches users in ID order, skipping the first **2** and returning up to **2** more.
+4. Returns those users plus information you can use for Next/Previous buttons.
+
+For this example dataset, `result` is:
+
+```ts
+{
+  items: [
+    { id: 3, name: "Grace" },
+    { id: 4, name: "Maya" },
+  ],
+  pagination: {
+    page: 2,
+    limit: 2,
+    offset: 2,
+    total: 5,
+    totalPages: 3,
+    hasNextPage: true,
+    hasPreviousPage: true,
+    firstItem: 3,
+    lastItem: 4,
+  },
+}
+```
+
+`items` contains the selected database rows. `pagination` tells you where this batch is in the full list. `firstItem` and `lastItem` are **positions in the list**, not database IDs (they happen to match the IDs in this example).
+
+The output type is [`PaginatedResult<TItem>`](/docs/api-reference/types#paginatedresult), and every metadata field is documented in [`PaginationMetadata`](/docs/api-reference/types#paginationmetadata). The TypeScript type of each item is **inferred** from `.select({ id, name })`—you don't have to define it by hand.
+
+## 4. Accept page and limit from a URL
+
+A real API might receive `/users?page=2&limit=2`. Those URL values are **strings**, but Paginate accepts them directly:
+
+```ts
+async function handleRequest(request: Request): Promise<Response> {
+  const url = new URL(request.url)
+
+  const result = await paginate({
+    query: () =>
+      db
+        .select({ id: users.id, name: users.name })
+        .from(users)
+        .orderBy(asc(users.id)),
+    countQuery: db.$count(users),
+    page: url.searchParams.get("page") ?? undefined,
+    limit: url.searchParams.get("limit") ?? undefined,
+  })
+
+  return Response.json(result)
+}
+```
+
+`handleRequest()` is an example HTTP handler, not a Paginate function. `URLSearchParams.get()` reads values like `"2"` from the URL. `Response.json()` sends the result as JSON.
+
+Paginate handles common input problems for you:
+
+- Missing or invalid `page` → page `1`.
+- Missing or invalid `limit` → limit `20`.
+- A valid limit larger than the normal maximum → capped at `100`.
+- A page beyond the last page → resolved to the last available page.
+
+You can change the limit settings with [`PageSizeOptions`](/docs/api-reference/types#pagesizeoptions).
+
+## 5. Add filters without breaking totals
+
+Suppose your `users` table also has an `active` boolean column and you want **only active users**. Apply the **same filter** to the select query and the count query:
+
+```ts
+import { eq } from "drizzle-orm"
+
+const where = eq(users.active, true)
+
+const result = await paginate({
+  query: () =>
+    db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(where)
+      .orderBy(asc(users.id)),
+  countQuery: db.$count(users, where),
+  page: 1,
+  limit: 10,
+})
+```
+
+`where` tells Drizzle to include only users whose `active` column is `true`. Using it in **both places** ensures that the `total` counts the same users that appear in `items`. The `active` column is an assumption for this optional example; use the columns from your own schema.
+
+## What about adapters?
+
+You may see an **adapter** mentioned in the [core API](/docs/api-reference) or the [other pagination guides](/docs/guides/page-pagination). It's simply the bit of code that translates Paginate's instructions into data queries.
+
+**With Drizzle, that adapter is already built for you.** You call `paginate()` from `@evensurface/paginate-drizzle` and pass Drizzle queries, as shown above. You do **not** create an adapter object.
+
+**Without Drizzle**, the framework-independent `@evensurface/paginate` package lets you write a small adapter for Prisma, another ORM, an HTTP API, or even an array. That's an **advanced integration choice**, not a step everyone must complete. Read [Adapters explained](/docs/adapters) when you actually need it.
+
+## Next steps
+
+- [Page Pagination](/docs/guides/page-pagination) explains all page inputs and outputs.
+- [Offset Pagination](/docs/guides/offset-pagination) uses `offset` instead of `page`.
+- [Cursor Pagination](/docs/guides/cursor-pagination) loads the next batch without counting.
+- [Drizzle ORM Guide](/docs/adapters/drizzle) shows all three modes with real Drizzle queries.

@@ -1,0 +1,229 @@
+---
+title: Drizzle ORM Adapter
+description: Use numbered pages, native offsets, and true keyset cursors with Drizzle ORM.
+---
+
+If your app already uses Drizzle ORM, you don't have to implement `count()` or `fetch()` yourself—or pass an `adapter` option into `paginate()`. The official package, **`@evensurface/paginate-drizzle`**, connects Drizzle's query builders to the pagination core.
+
+It supports PostgreSQL, MySQL, and SQLite query builders, including partial selects and joins. The examples below use PostgreSQL syntax; the pagination ideas are the same in other dialects.
+
+## 1. Install
+
+```bash
+pnpm add @evensurface/paginate @evensurface/paginate-drizzle drizzle-orm
+```
+
+You still need your project's own Drizzle database connection and database driver.
+
+In the examples below, assume `db` is your connected Drizzle database and `users` is a table containing:
+
+```ts
+// Example PostgreSQL table definition (schema.ts)
+import { boolean, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core"
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  active: boolean("active").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+})
+```
+
+The examples use `import { db } from "./db"` and `import { users } from "./schema"`. Replace those imports with paths in your own project. **`db` is your database connection; it is not exported by Paginate.**
+
+## Page pagination
+
+Use this when you need numbered pages and a total count. This is the same API from the [Quick Start](/docs/getting-started/quick-start), with an additional filter and more sort fields.
+
+```ts
+import { asc, desc, eq } from "drizzle-orm"
+import { paginate } from "@evensurface/paginate-drizzle"
+import { db } from "./db"
+import { users } from "./schema"
+
+const where = eq(users.active, true)
+
+const result = await paginate({
+  query: () =>
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(where)
+      .orderBy(desc(users.createdAt), asc(users.id)),
+  countQuery: db.$count(users, where),
+  page: 2,
+  limit: 20,
+})
+```
+
+### What each input means
+
+| Input | Type | What it does |
+| --- | --- | --- |
+| `query` | [`DrizzleSelectQueryFactory<TItem>`](/docs/api-reference/drizzle-types#drizzleselectqueryfactory) | A **function that creates a new select query**. The adapter later applies `.limit()` and `.offset()` to it. |
+| `countQuery` | [`DrizzleCountQuery`](/docs/api-reference/drizzle-types#drizzlecountquery) | A query or PromiseLike that returns the number of matching rows. |
+| `page` | [`PaginationInput`](/docs/api-reference/types#paginationinput), optional | Page to request. Starts at 1; defaults to 1. |
+| `limit` | [`PaginationInput`](/docs/api-reference/types#paginationinput), optional | Rows per page. Defaults to 20, normally capped at 100. |
+| `pageSizeOptions` | [`PageSizeOptions`](/docs/api-reference/types#pagesizeoptions), optional | Custom default/minimum/maximum limit. |
+
+The full options type is [`DrizzlePaginationOptions<TItem>`](/docs/api-reference/drizzle-types#drizzlepaginationoptions).
+
+**Why is `query` a function?** Drizzle query builders can be mutated by `.limit()` and `.offset()`. By calling the function only when fetching a page, the adapter gets a **fresh builder** each time. Don't create a builder once and return the same builder repeatedly: the adapter detects reuse and throws `DRIZZLE_QUERY_REUSED`.
+
+**Why is `countQuery` separate?** Paginate needs to know the total number of matching users to calculate the last page. `db.$count(users, where)` counts the users matching the same `where` filter. In this example, the adapter gets the count before creating the select query.
+
+### What comes back
+
+If there are 95 matching users:
+
+```ts
+{
+  items: [/* User rows selected above */],
+  pagination: {
+    page: 2,
+    limit: 20,
+    offset: 20,
+    total: 95,
+    totalPages: 5,
+    hasNextPage: true,
+    hasPreviousPage: true,
+    firstItem: 21,
+    lastItem: 40,
+  },
+}
+```
+
+The `items` type is **inferred from `.select({ ... })`**. In the example, it is an array of `{ id: number; name: string; createdAt: Date }`. The result type is [`PaginatedResult<TItem>`](/docs/api-reference/types#paginatedresult) and its metadata is [`PaginationMetadata`](/docs/api-reference/types#paginationmetadata).
+
+### Another way to count
+
+If your query uses a more complex count expression, the adapter also accepts a Drizzle `select({ total: count() })` query:
+
+```ts
+import { count } from "drizzle-orm"
+
+const countQuery = db
+  .select({ total: count() })
+  .from(users)
+  .where(where)
+```
+
+The result must be **exactly one row** containing a non-negative safe-integer `total`. Direct `db.$count()` values must follow the same rule. Empty, grouped multi-row, invalid, negative, or fractional counts raise a coded [Drizzle pagination error](/docs/api-reference/errors#drizzle-adapter-error-codes).
+
+## Offset pagination
+
+Use [`paginateOffset()`](/docs/api-reference/drizzle#paginateoffsetoptions) when the client supplies an arbitrary zero-based offset:
+
+```ts
+import { paginateOffset } from "@evensurface/paginate-drizzle"
+
+const offsetResult = await paginateOffset({
+  query: () =>
+    db.select().from(users).where(where).orderBy(asc(users.id)),
+  countQuery: db.$count(users, where),
+  offset: 40,
+  limit: 20,
+})
+```
+
+Here the adapter counts users, then skips **40** and fetches up to **20**. The output has `items` plus an [`OffsetPaginationMetadata`](/docs/api-reference/types#offsetpaginationmetadata) object containing `total`, `limit`, `offset`, `hasNextPage`, and `hasPreviousPage`. There is **no page number** in this output.
+
+The full input type is [`DrizzleOffsetPaginationOptions<TItem>`](/docs/api-reference/drizzle-types#drizzleoffsetpaginationoptions). You can use the same query factory and count query as page mode.
+
+## Cursor pagination
+
+Use [`paginateCursor()`](/docs/api-reference/drizzle#paginatecursoroptions) for forward-only feeds. It runs a real keyset query, **without `countQuery` or a numeric offset**.
+
+```ts
+import { and, eq } from "drizzle-orm"
+import { paginateCursor } from "@evensurface/paginate-drizzle"
+
+const cursorResult = await paginateCursor({
+  query: ({ cursorWhere, orderBy }) =>
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      // Combine your own access/filter conditions with the cursor condition.
+      .where(and(eq(users.active, true), cursorWhere))
+      // Use the order expressions supplied by the adapter.
+      .orderBy(...orderBy),
+  orderBy: [
+    {
+      key: "createdAt",
+      column: users.createdAt,
+      direction: "desc",
+      getValue: (row) => row.createdAt,
+    },
+    {
+      key: "id",
+      column: users.id,
+      direction: "desc",
+      getValue: (row) => row.id,
+    },
+  ],
+  limit: 20,
+  // cursor: previousResult.pagination.nextCursor ?? undefined,
+})
+```
+
+### What the special cursor fields do
+
+| Input | Type | Meaning |
+| --- | --- | --- |
+| `query` | [`DrizzleCursorQueryFactory<TItem>`](/docs/api-reference/drizzle-types#drizzlecursorqueryfactory) | A callback that builds the select query using `cursorWhere` and `orderBy` supplied by the adapter. |
+| `orderBy` | [`DrizzleCursorOrder<TItem>`](/docs/api-reference/drizzle-types#drizzlecursororder) | Describes each ordered column, direction, name, and how to read its value from a returned row. |
+| `cursor` | `string`, optional | The `nextCursor` from the last result; omit on the first request. |
+| `limit` | [`PaginationInput`](/docs/api-reference/types#paginationinput), optional | Maximum rows returned; the adapter fetches one extra for lookahead. |
+| `pageSizeOptions` | [`PageSizeOptions`](/docs/api-reference/types#pagesizeoptions), optional | Custom page-size boundaries. |
+
+The full options type is [`DrizzleCursorPaginationOptions<TItem>`](/docs/api-reference/drizzle-types#drizzlecursorpaginationoptions).
+
+**`cursorWhere`** is a Drizzle SQL condition the adapter generates to mean “rows after the last cursor position.” It is `undefined` on the first request. You must combine it with your regular filters using `and(...)` as shown above; otherwise you may return records from the wrong tenant or filter.
+
+**`orderBy` in the callback** is an array of Drizzle SQL order expressions. Apply it using `.orderBy(...orderBy)` so the SQL ordering matches the cursor position.
+
+**`orderBy` in the input** is the configuration that creates those expressions. Each `getValue(row)` extracts the value for the corresponding column from a selected result. The final order key should make the combination unique (usually the ID). All order columns must be non-null.
+
+With the two descending keys above, the adapter builds a continuation condition equivalent to:
+
+```sql
+created_at < :cursor_created_at
+OR (created_at = :cursor_created_at AND id < :cursor_id)
+```
+
+This is an **illustration of the logical SQL condition**, not an exact Drizzle-generated query. For mixed ascending and descending directions, the adapter chooses the correct `>` or `<` comparison for each column.
+
+### Cursor output and next request
+
+```ts
+{
+  items: [/* up to 20 inferred rows */],
+  pagination: {
+    limit: 20,
+    nextCursor: "<generated cursor or null>",
+    hasNextPage: true,
+  },
+}
+```
+
+The result is [`CursorPaginatedResult<TItem>`](/docs/api-reference/types#cursorpaginatedresult) with [`CursorPaginationMetadata`](/docs/api-reference/types#cursorpaginationmetadata). Pass the string in `nextCursor` as the next request's `cursor`. When there are no more rows, the cursor is `null` and `hasNextPage` is `false`.
+
+Cursor columns can represent strings, finite numbers, bigints, or dates. Custom Drizzle columns may require an explicit `valueType`; see [`DrizzleCursorOrderEntry<TItem>`](/docs/api-reference/drizzle-types#drizzlecursororderentry).
+
+## Important behavior
+
+- **Query reuse protection:** page, offset, and cursor query factories must produce fresh select builders.
+- **Type inference:** partial selects and joins retain the selected row type. Ensure count queries match the rows being paginated; one-to-many joins can otherwise count different entities than the fetched rows.
+- **Sorting:** add a unique tie-breaker; create a suitable index for your filters and ordering, especially for cursor pagination.
+- **Consistency:** page and offset execute separate count and fetch statements. Use your application's transaction/snapshot if you need them to see the same data.
+- **Permissions:** always include user and tenant filters in each query. Cursor strings are not signed and cannot prove authorization.
+
+For exported functions and exact types, see [Drizzle API](/docs/api-reference/drizzle), [Drizzle Types](/docs/api-reference/drizzle-types), and [Errors](/docs/api-reference/errors).

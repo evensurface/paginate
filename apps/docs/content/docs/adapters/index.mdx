@@ -1,0 +1,73 @@
+---
+title: Adapters Explained
+description: Understand what an adapter does, and why Drizzle users don't need to write one.
+---
+
+An **adapter** is just a translator between Paginate and the place where your data lives. Paginate knows how many items to request and where the next group begins. The adapter knows how to turn that request into database queries or API calls.
+
+**The important part: if you use Drizzle ORM, the adapter is already included. You don't have to create one.**
+
+## Start with the built-in Drizzle integration
+
+```ts
+import { asc } from "drizzle-orm"
+import { paginate } from "@evensurface/paginate-drizzle"
+import { db } from "./db"
+import { users } from "./schema"
+
+const result = await paginate({
+  query: () => db.select().from(users).orderBy(asc(users.id)),
+  countQuery: db.$count(users),
+  page: 2,
+  limit: 10,
+})
+```
+
+This is all you write for ordinary page pagination. `query` tells Drizzle which rows to select and in what order; `countQuery` counts matching rows; `page` chooses the page; `limit` controls the maximum items on it. The package handles the rest.
+
+For the full explanation and output, follow the [Quick Start](/docs/getting-started/quick-start) or [Drizzle guide](/docs/adapters/drizzle).
+
+## So what is happening behind the scenes?
+
+Suppose your Drizzle table has **35 users** and you request `page: 2, limit: 10`:
+
+1. Paginate needs the total, so the Drizzle integration runs your `countQuery` and receives `35`.
+2. Paginate calculates `offset = (2 - 1) × 10 = 10`.
+3. The integration calls your `query` function to build a fresh select query.
+4. It adds `.limit(10).offset(10)` and executes that query in Drizzle.
+5. Paginate returns up to 10 users plus metadata such as `total: 35`, `totalPages: 4`, and `hasNextPage: true`.
+
+The **adapter** handles steps 1, 3, and 4. You never need to call its methods yourself when using the Drizzle wrapper.
+
+## When would I write an adapter myself?
+
+Only when you're connecting the framework-independent core package to something it doesn't already support. For example, you might want to paginate results from another ORM, a REST API, or an in-memory collection.
+
+For page and offset pagination, your adapter implements two methods:
+
+```ts
+interface PaginationAdapter<TQuery, TCountQuery, TItem> {
+  count(query: TCountQuery): Promise<number>
+  fetch(
+    query: TQuery,
+    options: { limit: number; offset: number },
+  ): Promise<TItem[]>
+}
+```
+
+This is the **shape of an interface**, not code you need to copy into a Drizzle project. The type [`PaginationAdapter<TQuery, TCountQuery, TItem>`](/docs/api-reference/types#paginationadapter) is already exported by the core package.
+
+- `count(query)` receives the filters needed for counting and returns a `Promise<number>` containing the total matching items. If 35 items match, it resolves to `35`.
+- `fetch(query, { limit, offset })` receives the filters and how many matches to take or skip. It returns `Promise<TItem[]>` containing the selected rows. With `{ limit: 10, offset: 10 }`, it should return up to 10 rows after skipping the first 10 matches.
+- `TQuery` is the type of the fetch input, `TCountQuery` is the type of the count input, and `TItem` is the type of a returned row. You choose these based on your data source.
+
+For **cursor pagination**, the custom contract is different: it uses `fetch(query, { position, limit })` and `getPosition(item)`, without counting. See [`CursorPaginationAdapter`](/docs/api-reference/types#cursorpaginationadapter) and the [custom adapter guide](/docs/adapters/create-your-own).
+
+## Which path should I follow?
+
+| Your project | What to do |
+| --- | --- |
+| **Uses Drizzle ORM** | Use [`@evensurface/paginate-drizzle`](/docs/adapters/drizzle). No custom adapter to write. |
+| **Uses another database library or API** | Use [`@evensurface/paginate`](/docs/adapters/create-your-own) and implement the adapter for your data source. |
+
+The [Create Your Own Adapter](/docs/adapters/create-your-own) page is an **advanced integration guide**, not a required setup step.

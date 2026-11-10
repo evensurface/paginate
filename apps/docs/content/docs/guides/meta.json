@@ -1,0 +1,4 @@
+{
+  "title": "Pagination Guides",
+  "pages": ["page-pagination", "offset-pagination", "cursor-pagination"]
+}

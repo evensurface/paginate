@@ -1,0 +1,66 @@
+---
+title: Choosing a Strategy
+description: Decide whether to use page numbers, a numeric offset, or a cursor.
+---
+
+There isn't one pagination mode that's always best. The easiest choice comes from asking: **how should someone move through this list?**
+
+| Question | Page (`paginate`) | Offset (`paginateOffset`) | Cursor (`paginateCursor`) |
+| --- | --- | --- | --- |
+| Can users choose page 1, 2, or 10? | **Yes** | Not directly | No |
+| Does the response include the total count? | **Yes** | **Yes** | No |
+| Can you jump to an arbitrary position? | By page number | By item offset | No |
+| Can a client navigate backward? | By requesting an earlier page | By requesting an earlier offset | No built-in backward cursor |
+| Does it require counting? | Yes | Yes | **No** |
+| Does it avoid scanning past very large offsets? | No | No | **Yes, with a suitable indexed keyset query** |
+
+## Example 1: Admin table → Page
+
+Your application shows 950 users. Someone wants page 7, and you want to show “121–140 of 950.” Use [`paginate()`](/docs/guides/page-pagination).
+
+Input:
+
+```ts
+{ page: 7, limit: 20 }
+```
+
+Paginate counts the users, calculates `offset: 120`, and returns page metadata such as `totalPages: 48` and whether another page exists. The user can jump to page 1 or 48.
+
+## Example 2: Existing API with `skip` → Offset
+
+An API already accepts `?offset=40&limit=10`. There's no need to turn this into a page number. Use [`paginateOffset()`](/docs/guides/offset-pagination).
+
+Input:
+
+```ts
+{ offset: 40, limit: 10 }
+```
+
+It skips the first 40 matches and asks for up to 10 more. `offset: 43` is also valid. You still get a `total` count.
+
+## Example 3: Infinite feed → Cursor
+
+A user scrolls through a feed. They don't care how many posts exist or which numbered page they are on—they just want **more posts**. Use [`paginateCursor()`](/docs/guides/cursor-pagination).
+
+First request:
+
+```ts
+{ limit: 20 } // No cursor yet
+```
+
+Response metadata:
+
+```ts
+{ limit: 20, nextCursor: "...", hasNextPage: true }
+```
+
+The string is an opaque cursor generated from the last returned item's sort position. The next request sends it back as `cursor`. If `hasNextPage` is `false`, `nextCursor` is `null` and there is nothing left to load.
+
+## Tradeoffs to know
+
+- **Page and offset can get slower far into a huge list.** The database may still need to work through many rows before reaching your offset. Both also run a count query.
+- **Cursor can be faster for long feeds**, but only when your adapter performs a real keyset query and the database has suitable indexes. It cannot jump to an arbitrary page.
+- **Data can change while someone browses.** Stable sorting helps all modes; cursor pagination works best with unique, immutable sort keys.
+- **Only use a cursor to remember position**, never to grant permission. Cursor strings are not signed or encrypted.
+
+For a first implementation, choose **page** if you're building a table, **offset** if your API already expects it, and **cursor** if you're building a forward-scrolling feed.

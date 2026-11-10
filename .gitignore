@@ -9,6 +9,8 @@ build/
 **/build/
 lib/
 **/lib/
+!apps/docs/src/lib/
+!apps/docs/src/lib/**
 esm/
 **/esm/
 cjs/
@@ -17,6 +19,8 @@ types/
 **/types/
 coverage/
 **/coverage/
+out/
+**/out/
 artifacts/
 **/artifacts/
 .artifacts/

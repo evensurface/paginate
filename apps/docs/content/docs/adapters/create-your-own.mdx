@@ -1,0 +1,156 @@
+---
+title: Create Your Own Adapter
+description: "Advanced guide: connect the core package to another ORM, HTTP service, or array."
+---
+
+**You only need this page if you are connecting Paginate to a data source without a ready-made integration.** If your app uses Drizzle ORM, go to the [Quick Start](/docs/getting-started/quick-start) instead—no adapter setup is required.
+
+An adapter is a plain JavaScript object with a few methods. Paginate calls those methods; **your implementation decides where the data comes from**. You don't need to extend a class or register anything globally.
+
+There are two different adapter contracts because cursor pagination works differently from numbered pages and offsets.
+
+## Page and offset: count and fetch
+
+Use [`PaginationAdapter<TQuery, TCountQuery, TItem>`](/docs/api-reference/types#paginationadapter):
+
+```ts
+interface PaginationAdapter<TQuery, TCountQuery, TItem> {
+  count(query: TCountQuery): Promise<number>
+  fetch(query: TQuery, options: { limit: number; offset: number }): Promise<TItem[]>
+}
+```
+
+**The three generic types:**
+
+- `TQuery`: the type of input your `fetch()` method needs, such as `{ category: string; sort: "newest" | "oldest" }`.
+- `TCountQuery`: the type of input your `count()` method needs, such as `{ category: string }`.
+- `TItem`: the type of one result row, such as `{ id: number; title: string }`.
+
+They don't have to be the same, because counting usually doesn't need sort options.
+
+| Method | Input | Output | What you must do |
+| --- | --- | --- | --- |
+| `count(query)` | A `TCountQuery` value | `Promise<number>` | Count **all** matching items, not just the current page. Return a non-negative safe integer. |
+| `fetch(query, { limit, offset })` | A `TQuery` and two numbers | `Promise<TItem[]>` | Apply filters, sort consistently, skip `offset` matches, and return up to `limit` items. |
+
+### Complete array example
+
+```ts
+import {
+  paginate,
+  type PaginationAdapter,
+} from "@evensurface/paginate"
+
+type Product = {
+  id: number
+  category: string
+  title: string
+}
+
+type ProductQuery = {
+  category: string
+  sort: "newest" | "oldest"
+}
+
+type ProductCountQuery = { category: string }
+
+const products: Product[] = [
+  { id: 1, category: "books", title: "Book A" },
+  { id: 2, category: "games", title: "Game A" },
+  { id: 3, category: "books", title: "Book B" },
+  { id: 4, category: "books", title: "Book C" },
+]
+
+const adapter: PaginationAdapter<ProductQuery, ProductCountQuery, Product> = {
+  async count(query) {
+    return products.filter((product) => product.category === query.category).length
+  },
+
+  async fetch(query, { limit, offset }) {
+    const matching = products.filter((product) => product.category === query.category)
+    matching.sort((a, b) =>
+      query.sort === "newest" ? b.id - a.id : a.id - b.id,
+    )
+    return matching.slice(offset, offset + limit)
+  },
+}
+
+const result = await paginate({
+  adapter,
+  query: { category: "books", sort: "newest" },
+  countQuery: { category: "books" },
+  page: 2,
+  limit: 2,
+})
+```
+
+There are **3** books. In newest-first order their IDs are `4, 3, 1`. Page 2 skips the first two and returns product `1`:
+
+```ts
+{
+  items: [{ id: 1, category: "books", title: "Book A" }],
+  pagination: {
+    page: 2,
+    limit: 2,
+    offset: 2,
+    total: 3,
+    totalPages: 2,
+    hasNextPage: false,
+    hasPreviousPage: true,
+    firstItem: 3,
+    lastItem: 3,
+  },
+}
+```
+
+When you use [`paginateOffset()`](/docs/guides/offset-pagination) instead, you can reuse **this exact same adapter**. Only the pagination input changes from `page` to `offset`.
+
+### Call order and errors
+
+Paginate calls `count()` first. It calls `fetch()` once **only when** there are rows at the resolved page or offset. If counting returns zero, it skips fetching. Errors from your methods pass through unchanged; Paginate does not convert arbitrary database errors into pagination errors.
+
+## Cursor: fetch and getPosition
+
+Cursor pagination does **not** count rows or skip an offset. Use [`CursorPaginationAdapter<TQuery, TItem>`](/docs/api-reference/types#cursorpaginationadapter):
+
+```ts
+interface CursorPaginationAdapter<TQuery, TItem> {
+  fetch(
+    query: TQuery,
+    options: { position: CursorPosition | undefined; limit: number },
+  ): Promise<TItem[]>
+  getPosition(item: TItem): CursorPosition
+}
+```
+
+[`CursorPosition`](/docs/api-reference/types#cursorposition) is an ordered, non-empty list of keys like `createdAt` and `id`. Each key has a direction and typed value.
+
+| Method | Input | Output | Meaning |
+| --- | --- | --- | --- |
+| `fetch(query, { position, limit })` | `TQuery` plus a position (possibly `undefined`) and a number | `Promise<TItem[]>` | Return rows **after** the position, or the first rows if no position was supplied. |
+| `getPosition(item)` | One `TItem` returned by `fetch()` | [`CursorPosition`](/docs/api-reference/types#cursorposition) | Extract the values that identify this item's place in the sort order. |
+
+On each cursor request, the core asks for **`limit + 1` items**. For a requested limit of 20, your `fetch()` method receives `21`; the extra row is used only to detect if there is another page. The core removes it before returning the final items.
+
+Here is the shape of `getPosition()` for rows sorted by `createdAt DESC, id DESC`:
+
+```ts
+getPosition(post) {
+  return [
+    { key: "createdAt", direction: "desc", value: post.createdAt },
+    { key: "id", direction: "desc", value: post.id },
+  ]
+}
+```
+
+For the **complete cursor adapter**, including the exact filtering logic in `fetch()`, read [Cursor Pagination](/docs/guides/cursor-pagination#how-to-create-a-custom-cursor-adapter). With Drizzle ORM, the [official adapter](/docs/adapters/drizzle#cursor-pagination) builds the SQL comparison predicate for you.
+
+## Responsibilities you keep
+
+1. **Use equivalent filters for counting and fetching.** Otherwise the total and items won't match.
+2. **Sort deterministically.** Use a unique tie-breaker. Cursor sorting keys must be non-null and should not change during traversal.
+3. **Enforce permissions.** Apply user, tenant, and access filters on every query. A cursor token is not an authentication token.
+4. **Use the supplied values.** When Paginate gives you `{ limit, offset }` or `{ position, limit }`, your adapter needs to actually apply them.
+5. **Consider consistency.** Count and fetch are separate operations. A transaction or snapshot is your responsibility when you need a consistent view.
+
+See the [API Reference](/docs/api-reference) for function signatures and the [Type Reference](/docs/api-reference/types) for the full public interfaces.

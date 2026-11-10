@@ -1,0 +1,113 @@
+---
+title: Core Concepts
+description: Understand pages, offsets, limits, cursors, adapters, and metadata before using them.
+---
+
+## Items, limits, and pages
+
+Suppose you have 95 products and want to show 20 at a time:
+
+- **Item:** one product returned by your query.
+- **Limit:** how many products to request at most. Here, `limit = 20`.
+- **Page:** the group the user wants: page 1, page 2, page 3, and so on.
+- **Offset:** how many matching products the database should skip before returning a group.
+
+With a limit of 20:
+
+| Page | Offset | Item positions |
+| --- | ---: | --- |
+| 1 | 0 | 1–20 |
+| 2 | 20 | 21–40 |
+| 3 | 40 | 41–60 |
+| 5 | 80 | 81–95 |
+
+The formula is `offset = (page - 1) × limit`. You don't need to calculate this yourself when using [`paginate()`](/docs/guides/page-pagination).
+
+You can also start directly from an offset: [`paginateOffset()`](/docs/guides/offset-pagination) with `offset: 7` and `limit: 5` skips seven matching items and gets up to five more. The offset **does not** have to be a multiple of the limit.
+
+## What a cursor is
+
+A cursor is different from a number telling the database how many rows to skip. It stores the **last item's sorting position**. The database integration uses that position to fetch rows that come **after** it.
+
+Imagine a feed sorted newest first. Instead of saying “skip 1,000 posts,” you say “give me the next 20 posts after this post's timestamp and ID.” The returned `nextCursor` is a string to send with your next request. You don't have to build the string yourself.
+
+Cursor pagination needs a consistent sort order and normally an index supporting that order. Learn how it works in [Cursor Pagination](/docs/guides/cursor-pagination).
+
+## What an adapter means
+
+You **don't need to write an adapter if you use Drizzle ORM**. The `@evensurface/paginate-drizzle` package already provides one. You pass a normal Drizzle query and a count query:
+
+```ts
+import { paginate } from "@evensurface/paginate-drizzle"
+
+const result = await paginate({
+  query: () => db.select().from(users).orderBy(asc(users.id)),
+  countQuery: db.$count(users),
+  page: 2,
+  limit: 20,
+})
+```
+
+This snippet assumes you already have a Drizzle `db`, a `users` table, and `asc` imported from `drizzle-orm`, as shown in the [Quick Start](/docs/getting-started/quick-start).
+
+Behind the scenes, the adapter translates the request into **count the matching rows**, then **fetch up to 20 rows after skipping 20**. An adapter is the bridge that knows how to run those operations on a particular data source.
+
+If you're using a different ORM or fetching from an API, you can provide that bridge yourself using the [core adapter interface](/docs/adapters/create-your-own). Its `count()` method reports the total and its `fetch()` method returns the rows; the cursor version uses `fetch()` and `getPosition()` instead. The exact types are [`PaginationAdapter`](/docs/api-reference/types#paginationadapter) and [`CursorPaginationAdapter`](/docs/api-reference/types#cursorpaginationadapter).
+
+Read [Adapters Explained](/docs/adapters) if you want to see the inputs, outputs, and how this works internally. **It isn't a prerequisite for using Drizzle.**
+
+## Understanding inputs and defaults
+
+All three modes accept `limit`. Page mode accepts `page`; native offset mode accepts `offset`; cursor mode accepts `cursor`.
+
+| Input | Type | If missing or invalid | Valid example |
+| --- | --- | --- | --- |
+| `page` | [`PaginationInput`](/docs/api-reference/types#paginationinput) | Page `1` | `3` or `"3"` |
+| `offset` | [`PaginationInput`](/docs/api-reference/types#paginationinput) | Offset `0` | `40` or `"40"` |
+| `limit` | [`PaginationInput`](/docs/api-reference/types#paginationinput) | Default `20` | `25` or `"25"` |
+| `cursor` | `string` | Omit for the first batch | `nextCursor` from the last result |
+
+`page` and `limit` require positive safe integers. `offset` also allows zero. Decimal strings such as `"2.5"`, negative values, `NaN`, and letters are invalid. Whitespace around a numeric string is allowed.
+
+**Cursors behave differently:** if you supply a malformed or unsupported cursor, Paginate **throws an error** instead of quietly returning the first batch. Omit the cursor for the first batch. See [Errors](/docs/api-reference/errors).
+
+## Set how many items can be requested
+
+By default, `limit` is **20** and is restricted to **1 through 100**. A client asking for 500 will get a limit of 100.
+
+Use [`PageSizeOptions`](/docs/api-reference/types#pagesizeoptions) if your application needs a different policy:
+
+```ts
+pageSizeOptions: {
+  defaultLimit: 25, // Used if the request's limit is missing or invalid
+  minLimit: 5,      // A valid limit smaller than 5 becomes 5
+  maxLimit: 200,    // A valid limit larger than 200 becomes 200
+}
+```
+
+All three main functions accept this object. These settings must be positive safe integers, with `minLimit <= defaultLimit <= maxLimit`; invalid **configuration** throws an error. Invalid **request values** normally use the fallback instead.
+
+## Understand the result
+
+Every pagination call returns:
+
+```ts
+{
+  items: [/* your matching rows */],
+  pagination: {/* details about this batch */},
+}
+```
+
+`items` is an array of your own item type, such as `User[]` or `Product[]`. The exact fields inside `pagination` depend on which mode you chose:
+
+- [Page metadata](/docs/api-reference/types#paginationmetadata): page number, total pages, row positions, and navigation flags.
+- [Offset metadata](/docs/api-reference/types#offsetpaginationmetadata): total rows, limit, offset, and navigation flags.
+- [Cursor metadata](/docs/api-reference/types#cursorpaginationmetadata): limit, `nextCursor`, and `hasNextPage`—no total count.
+
+## Things Paginate cannot guarantee
+
+**Ordering matters.** The data source must sort consistently; include a unique tie-breaker such as an ID. Page and offset pagination can repeat or miss rows when the underlying data changes between requests. Cursor pagination reduces some of those problems but also requires stable, non-null ordering values.
+
+**Counts and rows can disagree temporarily.** Page and offset modes count first, then fetch. If records change between those two operations, the metadata may describe a slightly different snapshot. Use a transaction or consistent snapshot in your application if you need that guarantee.
+
+**Authorization is still your responsibility.** The adapter or query must enforce tenant and user filters on every request; cursor tokens aren't proof of permission.

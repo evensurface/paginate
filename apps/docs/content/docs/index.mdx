@@ -1,0 +1,60 @@
+---
+title: Paginate
+description: Simple pagination for TypeScript and Drizzle ORM—pages, offsets, and cursors without the repetitive work.
+---
+
+Imagine your app has **950 users**, but you only want to show 20 at a time. You need to fetch the right users, know whether a next page exists, and return that information to your UI.
+
+**Paginate handles the pagination work.** You provide your database query and the page size; Paginate calculates the page, normalizes the inputs, fetches the right rows, and returns navigation information.
+
+If you use **Drizzle ORM**, you can start straight away—**no custom adapter required**.
+
+## Get started with Drizzle
+
+Install the pagination engine and its ready-made Drizzle integration:
+
+```bash
+pnpm add @evensurface/paginate @evensurface/paginate-drizzle drizzle-orm
+```
+
+Then use your existing Drizzle `db` and `users` table:
+
+```ts
+import { asc } from "drizzle-orm"
+import { paginate } from "@evensurface/paginate-drizzle"
+import { db } from "./db"
+import { users } from "./schema"
+
+const result = await paginate({
+  query: () => db.select().from(users).orderBy(asc(users.id)),
+  countQuery: db.$count(users),
+  page: 2,
+  limit: 20,
+})
+```
+
+Here, `query` describes which users to fetch, `countQuery` counts all matching users, `page: 2` asks for the second page, and `limit: 20` asks for up to 20 users. The `result` contains `items` (the rows) and `pagination` (the total, pages, and Next/Previous information).
+
+The `db` and `users` imports refer to your own Drizzle setup. For a complete walkthrough—including the exact output and why `query` is a function—read the [Quick Start](/docs/getting-started/quick-start).
+
+## Choose a pagination style
+
+| Style | Function | What it means | Good for |
+| --- | --- | --- | --- |
+| **Page** | [`paginate()`](/docs/guides/page-pagination) | “Give me page 2 of 20 items.” | Tables and search results |
+| **Offset** | [`paginateOffset()`](/docs/guides/offset-pagination) | “Skip 40 items, then give me 20.” | APIs that use `offset` and `limit` |
+| **Cursor** | [`paginateCursor()`](/docs/guides/cursor-pagination) | “Give me the next items after this position.” | Feeds and Load more buttons |
+
+All three return `{ items, pagination }`, but the fields in `pagination` differ. Page and offset modes count matching rows; cursor mode uses an encoded position and does **not** count.
+
+## What is an adapter? Do I need one?
+
+An adapter is the connection between Paginate's pagination logic and a data source. **`@evensurface/paginate-drizzle` already includes that connection**, so Drizzle users just pass a query and call `paginate()`.
+
+If you use a different ORM, service, or custom data source, the core [`@evensurface/paginate`](https://www.npmjs.com/package/@evensurface/paginate) package lets you provide your own adapter. You only need to learn that interface if you're building a custom integration. See [Adapters explained](/docs/adapters).
+
+## Where to go next
+
+Start with the [Quick Start](/docs/getting-started/quick-start). Then read [Core Concepts](/docs/getting-started/core-concepts) or [Choosing a Strategy](/docs/getting-started/choosing-a-strategy). For exact input and output types, use [Core Types](/docs/api-reference/types) and [Drizzle Types](/docs/api-reference/drizzle-types).
+
+**Requirements:** Node.js 18.18 or newer. Both ESM and CommonJS are supported; TypeScript gives you type checking and inferred database rows.

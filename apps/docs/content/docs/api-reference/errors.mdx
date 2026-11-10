@@ -1,0 +1,99 @@
+---
+title: Errors
+description: Learn which pagination errors to handle and what each error code means.
+---
+
+Most invalid **request inputs** are handled automatically. For example, `page: "abc"` becomes page `1`, while an invalid `limit` uses the configured default. You don't need a `try`/`catch` for every bad URL parameter.
+
+However, **invalid configuration**, unsafe calculations, and malformed cursor tokens produce errors. There are also special errors for mistakes in the Drizzle adapter setup.
+
+## Core pagination errors
+
+Core errors come from `@evensurface/paginate`. They are native JavaScript **`RangeError`** instances with an extra read-only `code` property. Use `isPaginationError(error)` to check whether a caught value is one of these errors before reading its code.
+
+```ts
+import { isPaginationError, parseLimit } from "@evensurface/paginate"
+
+try {
+  // The default (20) is below the configured minimum (30).
+  parseLimit(5, { defaultLimit: 20, minLimit: 30, maxLimit: 100 })
+} catch (error) {
+  if (isPaginationError(error)) {
+    console.log(error.code) // "INVALID_DEFAULT_LIMIT"
+    console.log(error instanceof RangeError) // true
+  } else {
+    throw error // Don't hide unexpected problems.
+  }
+}
+```
+
+The guard's return type is `error is `[`PaginationError`](/docs/api-reference/types#paginationerror). All possible codes are in [`PaginationErrorCode`](/docs/api-reference/types#paginationerrorcode).
+
+### Core error codes
+
+| Code | What causes it | What to do |
+| --- | --- | --- |
+| `INVALID_PAGE_SIZE_BOUNDS` | `minLimit` or `maxLimit` is invalid, or min is greater than max. | Fix your `pageSizeOptions` settings. |
+| `INVALID_DEFAULT_LIMIT` | `defaultLimit` is invalid or outside the min/max range. | Choose a valid default within the bounds. |
+| `INVALID_PAGE` | A **strict helper** receives a page that isn't a positive safe integer. | Pass a validated page; or use `parsePage()` for untrusted input. |
+| `INVALID_LIMIT` | A **strict helper** receives an invalid limit. | Pass a positive safe integer or normalize with `parseLimit()`. |
+| `INVALID_OFFSET` | A strict offset metadata helper receives an invalid offset. | Use a non-negative safe integer. |
+| `OFFSET_OVERFLOW` | `(page - 1) * limit` is too large to represent safely. | Reduce the page, limit, or requested range. |
+| `INVALID_TOTAL` | A metadata helper receives an invalid total. | Ensure counts are non-negative safe integers. |
+| `INVALID_TOTAL_PAGES` | A helper receives an invalid total page count. | Use a non-negative safe integer. |
+| `INVALID_SIBLINGS` | `createPageWindow()` receives negative, fractional, or unsafe siblings. | Use a non-negative safe integer. |
+| `INVALID_BOUNDARIES` | `createPageWindow()` receives non-positive, fractional, or unsafe boundaries. | Use a positive safe integer (at least 1). |
+| `INVALID_CURSOR` | A supplied cursor is empty, malformed, non-canonical, or too large. | Reject the cursor in the request; don't retry it automatically. |
+| `UNSUPPORTED_CURSOR_VERSION` | A cursor uses a format version that this release doesn't understand. | Ask the client to restart traversal without a cursor. |
+| `INVALID_CURSOR_POSITION` | An adapter's `getPosition()` returns invalid keys/values or an encoding that exceeds the size limit. | Fix the adapter's ordering and returned values. |
+| `CURSOR_LIMIT_OVERFLOW` | `limit + 1` cannot be represented safely for cursor lookahead. | Lower the configured maximum and requested limit. |
+
+**A useful distinction:** `parsePage("bad")` returns `1`, but `calculateOffset(0, 20)` throws `INVALID_PAGE`. The first helper is meant for **untrusted request values**; the second expects **validated numeric inputs**.
+
+## Drizzle adapter errors
+
+The Drizzle adapter has its **own** guard, `isDrizzlePaginationError(error)`, exported by `@evensurface/paginate-drizzle`. These errors use native `RangeError` or `TypeError` constructors and have their own codes.
+
+### Drizzle adapter error codes
+
+| Code | Error class | What causes it |
+| --- | --- | --- |
+| `DRIZZLE_INVALID_COUNT_ROWS` | `RangeError` | A select count query returns zero rows or more than one row; it must return exactly one. |
+| `DRIZZLE_INVALID_COUNT` | `RangeError` | The count is negative, fractional, unsafe, or otherwise not a valid integer. |
+| `DRIZZLE_QUERY_REUSED` | `TypeError` | A query factory returns a previously returned/mutated builder instead of a fresh one. |
+| `DRIZZLE_INVALID_CURSOR_ORDER` | `TypeError` | Cursor ordering uses duplicate keys, nullable columns, invalid directions/types, or invalid configuration. |
+| `DRIZZLE_CURSOR_ORDER_MISMATCH` | `TypeError` | A supplied cursor's key names, order, directions, or value types don't match the configured Drizzle ordering. |
+
+See [`DrizzlePaginationError`](/docs/api-reference/drizzle-types#drizzlepaginationerror) and [`DrizzlePaginationErrorCode`](/docs/api-reference/drizzle-types#drizzlepaginationerrorcode) for the exact types.
+
+### Handle both error families
+
+```ts
+import { isPaginationError } from "@evensurface/paginate"
+import { isDrizzlePaginationError } from "@evensurface/paginate-drizzle"
+
+function explainPaginationError(error: unknown): string | null {
+  if (isDrizzlePaginationError(error)) {
+    // The Drizzle query setup or adapter contract was invalid.
+    return `Drizzle pagination error: ${error.code}`
+  }
+
+  if (isPaginationError(error)) {
+    // The core found a bad configuration, helper input, or cursor.
+    return `Pagination error: ${error.code}`
+  }
+
+  // Not an error created by either pagination package.
+  return null
+}
+```
+
+The function returns a string for known pagination errors and `null` for unknown ones; **it does not send an HTTP response**. Your route handler decides whether to return a client error for a bad cursor or an internal error for a broken configuration. Do not expose confidential database details in API responses.
+
+## What these guards do not catch
+
+- Database connection failures, SQL errors, and exceptions from your own adapter are passed through unchanged.
+- `isPaginationError()` identifies core-created errors, not Drizzle-created ones. `isDrizzlePaginationError()` does the reverse.
+- The guards are meant for identifying errors in the same JavaScript realm, including common duplicate ESM/CommonJS package instances. They are **not a security boundary** against forged objects, and they don't recognize cross-realm errors or errors whose special properties were lost during serialization.
+
+For helper behavior and exact inputs, return to the [Core API Reference](/docs/api-reference) or the [Drizzle API Reference](/docs/api-reference/drizzle).

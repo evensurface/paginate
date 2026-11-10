@@ -1,0 +1,149 @@
+---
+title: Drizzle API Reference
+description: Functions exported by @evensurface/paginate-drizzle, with options and results.
+---
+
+These functions come from **`@evensurface/paginate-drizzle`**, not the framework-independent core. They let you pass Drizzle query builders directly without writing a custom adapter.
+
+```ts
+import {
+  paginate,
+  paginateOffset,
+  paginateCursor,
+  createDrizzleAdapter,
+  createDrizzleCursorAdapter,
+  isDrizzlePaginationError,
+} from "@evensurface/paginate-drizzle"
+```
+
+## `paginate(options)`
+
+Uses a Drizzle select-query **factory** and a matching **count query** to return one numbered page.
+
+- **Input:** [`DrizzlePaginationOptions<TItem>`](/docs/api-reference/drizzle-types#drizzlepaginationoptions): `query`, `countQuery`, optional `page`, `limit`, `pageSizeOptions`.
+- **Output:** `Promise<`[`PaginatedResult<TItem>`](/docs/api-reference/types#paginatedresult)`>`.
+
+```ts
+const result = await paginate({
+  query: () => db.select().from(users).orderBy(asc(users.id)),
+  countQuery: db.$count(users),
+  page: 2,
+  limit: 20,
+})
+```
+
+`db`, `users`, and `asc` are from your Drizzle setup; see [Drizzle ORM Adapter](/docs/adapters/drizzle) for complete imports and schema examples. **`query` is a function** because each fetch needs a fresh query builder. **`countQuery` is the query to await**, not a function that Paginate will call. The selected row type is inferred.
+
+## `paginateOffset(options)`
+
+Works like `paginate()`, but uses a zero-based offset instead of a numbered page.
+
+- **Input:** [`DrizzleOffsetPaginationOptions<TItem>`](/docs/api-reference/drizzle-types#drizzleoffsetpaginationoptions): `query`, `countQuery`, optional `offset`, `limit`, `pageSizeOptions`.
+- **Output:** `Promise<`[`OffsetPaginatedResult<TItem>`](/docs/api-reference/types#offsetpaginatedresult)`>`.
+
+```ts
+const result = await paginateOffset({
+  query: () => db.select().from(users).orderBy(asc(users.id)),
+  countQuery: db.$count(users),
+  offset: 40,
+  limit: 20,
+})
+```
+
+It asks Drizzle to skip 40 matching records and return up to 20. If the count is 95, the output metadata is `{ total: 95, limit: 20, offset: 40, hasNextPage: true, hasPreviousPage: true }`.
+
+## `paginateCursor(options)`
+
+Runs forward-only, **count-free keyset pagination** using Drizzle columns and generated SQL predicates.
+
+- **Input:** [`DrizzleCursorPaginationOptions<TItem>`](/docs/api-reference/drizzle-types#drizzlecursorpaginationoptions): `query`, `orderBy`, optional `cursor`, `limit`, `pageSizeOptions`.
+- **Output:** `Promise<`[`CursorPaginatedResult<TItem>`](/docs/api-reference/types#cursorpaginatedresult)`>`.
+
+```ts
+const result = await paginateCursor({
+  query: ({ cursorWhere, orderBy }) =>
+    db.select({ id: users.id, createdAt: users.createdAt })
+      .from(users)
+      .where(cursorWhere)
+      .orderBy(...orderBy),
+  orderBy: [
+    { key: "createdAt", column: users.createdAt, direction: "desc", getValue: (row) => row.createdAt },
+    { key: "id", column: users.id, direction: "desc", getValue: (row) => row.id },
+  ],
+  limit: 20,
+})
+```
+
+The callback receives [`DrizzleCursorQueryOptions`](/docs/api-reference/drizzle-types#drizzlecursorqueryoptions): a generated `cursorWhere` condition and an array of SQL `orderBy` expressions. Use **both**, plus any application-specific filters in `.where(and(yourFilter, cursorWhere))`. The adapter asks for 21 rows to determine whether another batch exists. For the full walkthrough, see [Drizzle Cursor Pagination](/docs/adapters/drizzle#cursor-pagination).
+
+## `createDrizzleAdapter<TItem>()`
+
+Creates a [`PaginationAdapter`](/docs/api-reference/types#paginationadapter) you can pass to **the core** `paginate()` or `paginateOffset()` functions. You usually won't need this because the Drizzle package already provides wrapper functions.
+
+- **Input:** no function arguments. The optional TypeScript generic `TItem` is your selected row type.
+- **Output:** `PaginationAdapter<`[`DrizzleSelectQueryFactory<TItem>`](/docs/api-reference/drizzle-types#drizzleselectqueryfactory)`, `[`DrizzleCountQuery`](/docs/api-reference/drizzle-types#drizzlecountquery)`, TItem>`.
+
+```ts
+import { paginate as paginateCore } from "@evensurface/paginate"
+import { createDrizzleAdapter } from "@evensurface/paginate-drizzle"
+
+type UserRow = { id: number; name: string }
+
+const adapter = createDrizzleAdapter<UserRow>()
+
+const result = await paginateCore({
+  adapter,
+  query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(asc(users.id)),
+  countQuery: db.$count(users),
+  page: 1,
+  limit: 10,
+})
+```
+
+The adapter's `count()` accepts a Drizzle `$count()` result or a one-row `select({ total: count() })` result. Its `fetch()` builds and executes a query with `.limit(limit).offset(offset)`.
+
+## `createDrizzleCursorAdapter<TItem>(orderBy)`
+
+Creates a [`CursorPaginationAdapter`](/docs/api-reference/types#cursorpaginationadapter) for the core's `paginateCursor()`. The wrapper in the Drizzle package already calls this for you.
+
+- **Input:** `orderBy: `[`DrizzleCursorOrder<TItem>`](/docs/api-reference/drizzle-types#drizzlecursororder), a non-empty array of column ordering definitions.
+- **Output:** `CursorPaginationAdapter<`[`DrizzleCursorQueryFactory<TItem>`](/docs/api-reference/drizzle-types#drizzlecursorqueryfactory)`, TItem>`.
+
+```ts
+import { createDrizzleCursorAdapter } from "@evensurface/paginate-drizzle"
+
+const adapter = createDrizzleCursorAdapter<{ id: number }>([
+  { key: "id", column: users.id, direction: "asc", getValue: (row) => row.id },
+])
+```
+
+On fetch, this adapter checks the configured columns and cursor position, creates SQL continuation conditions when necessary, and calls the supplied query factory. On `getPosition(item)`, it extracts each column's value using the `getValue` functions.
+
+## `isDrizzlePaginationError(error)`
+
+Checks whether an error came from the Drizzle adapter itself.
+
+- **Input:** `unknown`.
+- **Output:** a boolean at runtime; TypeScript narrows to [`DrizzlePaginationError`](/docs/api-reference/drizzle-types#drizzlepaginationerror) when `true`.
+
+```ts
+import { isDrizzlePaginationError } from "@evensurface/paginate-drizzle"
+
+try {
+  await paginate({
+    query: () => db.select().from(users).orderBy(asc(users.id)),
+    countQuery: db.$count(users),
+    page: 1,
+  })
+} catch (error) {
+  if (isDrizzlePaginationError(error)) {
+    console.error(error.code) // e.g. "DRIZZLE_QUERY_REUSED"
+  } else {
+    throw error // A database failure or a core pagination error.
+  }
+}
+```
+
+This guard does **not** identify validation errors created by the core. To handle both kinds, use the corresponding `isPaginationError()` from `@evensurface/paginate`. The [Errors reference](/docs/api-reference/errors) lists both sets of codes.
+
+All exported Drizzle interfaces and aliases are described in [Drizzle Types](/docs/api-reference/drizzle-types).

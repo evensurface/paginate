@@ -1,0 +1,256 @@
+---
+title: Core API Reference
+description: Every public function and constant in @evensurface/paginate, with inputs and outputs.
+---
+
+**This is the lower-level core API**, intended for custom data sources and advanced integrations. **If you use Drizzle, start with the [Quick Start](/docs/getting-started/quick-start) or [Drizzle API](/docs/api-reference/drizzle) instead.** Its `paginate()` function accepts Drizzle queries directly and does not require an `adapter` argument.
+
+This page covers the public JavaScript functions exported by **`@evensurface/paginate`**. You import them from the package root:
+
+```ts
+import {
+  paginate,
+  paginateOffset,
+  paginateCursor,
+  parsePage,
+  parseLimit,
+} from "@evensurface/paginate"
+```
+
+You don't have to use the helper functions if you call `paginate()`, `paginateOffset()`, or `paginateCursor()`—those functions already parse inputs and create metadata for you.
+
+## Main pagination functions
+
+### `paginate()`
+
+Use this for **numbered pages**. It counts matching rows, resolves the requested page, calculates an offset, and fetches that page.
+
+- **Input:** [`PaginationOptions<TQuery, TCountQuery, TItem>`](/docs/api-reference/types#paginationoptions). Required: `adapter`, `query`, `countQuery`. Optional: `page`, `limit`, `pageSizeOptions`.
+- **Output:** `Promise<`[`PaginatedResult<TItem>`](/docs/api-reference/types#paginatedresult)`>` with `items` and [`PaginationMetadata`](/docs/api-reference/types#paginationmetadata).
+
+```ts
+const result = await paginate({
+  adapter,            // Your adapter's count() and fetch() methods
+  query: { active: true },      // Filter sent to fetch()
+  countQuery: { active: true }, // Filter sent to count()
+  page: 2,             // Request page 2 (first page is 1)
+  limit: 20,           // At most 20 rows per page
+})
+```
+
+Here `adapter` is a custom adapter you've already created (see [Create Your Own Adapter](/docs/adapters/create-your-own)). If the count is 95, the metadata has `page: 2`, `total: 95`, `offset: 20`, and `totalPages: 5`. See the [Page Guide](/docs/guides/page-pagination) for the complete output object.
+
+### `paginateOffset()`
+
+Use this when the caller provides a **number of rows to skip** instead of a page number. The offset isn't clamped to the last page.
+
+- **Input:** [`OffsetPaginationOptions<TQuery, TCountQuery, TItem>`](/docs/api-reference/types#offsetpaginationoptions). Required: `adapter`, `query`, `countQuery`. Optional: `offset`, `limit`, `pageSizeOptions`.
+- **Output:** `Promise<`[`OffsetPaginatedResult<TItem>`](/docs/api-reference/types#offsetpaginatedresult)`>` with `items` and [`OffsetPaginationMetadata`](/docs/api-reference/types#offsetpaginationmetadata).
+
+```ts
+const result = await paginateOffset({
+  adapter,
+  query: { active: true },
+  countQuery: { active: true },
+  offset: 40, // Skip 40 matching rows
+  limit: 20,  // Fetch up to 20 more
+})
+```
+
+If the count is 95, it requests matching positions 41–60 and returns metadata including `{ total: 95, limit: 20, offset: 40 }`. See [Offset Pagination](/docs/guides/offset-pagination) for all fields and the beyond-the-end case.
+
+### `paginateCursor()`
+
+Use this to fetch the next batch in a feed. It **does not count** rows and **does not use a numeric offset**.
+
+- **Input:** [`CursorPaginationOptions<TQuery, TItem>`](/docs/api-reference/types#cursorpaginationoptions). Required: `adapter`, `query`. Optional: `cursor`, `limit`, `pageSizeOptions`.
+- **Output:** `Promise<`[`CursorPaginatedResult<TItem>`](/docs/api-reference/types#cursorpaginatedresult)`>` with `items` and [`CursorPaginationMetadata`](/docs/api-reference/types#cursorpaginationmetadata).
+
+```ts
+const result = await paginateCursor({
+  adapter: cursorAdapter,
+  query: { published: true },
+  limit: 20,
+  // cursor: previousResult.pagination.nextCursor ?? undefined
+})
+```
+
+`cursorAdapter` is a cursor adapter that fetches rows after a sort position and implements `getPosition()` (see the [complete cursor example](/docs/guides/cursor-pagination#how-to-create-a-custom-cursor-adapter)). Paginate asks the adapter for **21** rows to detect more results, but returns at most 20. When a further batch exists, the output contains `hasNextPage: true` and a generated `nextCursor` string.
+
+## Input helpers
+
+These functions take raw request inputs and return normalized numbers. They **do not fetch data**.
+
+### `parsePage(value?)`
+
+- **Input:** `value?: `[`PaginationInput`](/docs/api-reference/types#paginationinput) (`string | number`).
+- **Output:** `number` (a positive safe integer).
+- **Rule:** Valid positive whole numbers pass through. Missing or invalid values become `1`.
+
+```ts
+parsePage("3")     // 3
+parsePage(2)       // 2
+parsePage("abc")   // 1
+parsePage(0)       // 1
+parsePage("2.5")   // 1
+```
+
+### `parseOffset(value?)`
+
+- **Input:** `value?: `[`PaginationInput`](/docs/api-reference/types#paginationinput).
+- **Output:** `number` (a non-negative safe integer).
+- **Rule:** Valid offsets pass through, including zero. Missing, negative, fractional, or invalid values become `0`.
+
+```ts
+parseOffset("40")  // 40
+parseOffset(0)     // 0
+parseOffset("-4")  // 0
+parseOffset("no")  // 0
+```
+
+### `parseLimit(value?, options?)`
+
+- **Input:** `value?: `[`PaginationInput`](/docs/api-reference/types#paginationinput); `options?: `[`PageSizeOptions`](/docs/api-reference/types#pagesizeoptions).
+- **Output:** `number`: a positive safe integer inside the allowed range.
+- **Rule:** Missing or invalid values use `defaultLimit` (normally 20); valid values smaller than `minLimit` are raised, and values greater than `maxLimit` are reduced.
+
+```ts
+parseLimit(undefined) // 20: default
+parseLimit(0)         // 20: invalid input uses default
+parseLimit("25")      // 25
+parseLimit(500)       // 100: default maximum
+parseLimit(3, { defaultLimit: 10, minLimit: 5, maxLimit: 50 }) // 5
+```
+
+The configuration itself must be valid: `minLimit`, `defaultLimit`, and `maxLimit` must be positive safe integers, and `minLimit <= defaultLimit <= maxLimit`. Otherwise the helper throws a coded [RangeError](/docs/api-reference/errors). It doesn't silently repair your configuration.
+
+## Page and offset math helpers
+
+These helpers take **already validated numeric values**. Unlike `parsePage()` and `parseOffset()`, they throw for invalid inputs.
+
+### `calculateOffset(page, limit)`
+
+- **Input:** `page: number` and `limit: number`, both positive safe integers.
+- **Output:** `number` (the zero-based offset).
+- **Calculation:** `(page - 1) × limit`.
+
+```ts
+calculateOffset(1, 20) // 0: first page starts immediately
+calculateOffset(2, 20) // 20: skip 20 matching rows
+calculateOffset(5, 10) // 40
+```
+
+Throws `INVALID_PAGE` or `INVALID_LIMIT` if the inputs are invalid; throws `OFFSET_OVERFLOW` if their product isn't a safe integer.
+
+### `resolvePage(page, totalPages)`
+
+- **Input:** `page: number` (positive safe integer), `totalPages: number` (non-negative safe integer).
+- **Output:** `number`, the page that should actually be used.
+- **Rule:** If the requested page is higher than `totalPages`, use the last page. If `totalPages` is zero, return page `1`.
+
+```ts
+resolvePage(3, 10) // 3: page exists
+resolvePage(15, 10) // 10: last available page
+resolvePage(5, 0)  // 1: empty dataset
+```
+
+Throws `INVALID_PAGE` or `INVALID_TOTAL_PAGES` for invalid values.
+
+## Metadata helpers
+
+These **create metadata without querying any database**. Use them if you already know the count and want the same format that the pagination functions would return.
+
+### `createPaginationMetadata(options)`
+
+- **Input:** [`PaginationMetadataOptions`](/docs/api-reference/types#paginationmetadataoptions): `{ page: number; limit: number; total: number }`.
+- **Output:** [`PaginationMetadata`](/docs/api-reference/types#paginationmetadata).
+
+```ts
+const metadata = createPaginationMetadata({
+  page: 2,  // Requested page
+  limit: 20, // Maximum items per page
+  total: 95, // Total matching rows (already known)
+})
+
+// {
+//   page: 2, limit: 20, offset: 20, total: 95,
+//   totalPages: 5, hasNextPage: true, hasPreviousPage: true,
+//   firstItem: 21, lastItem: 40,
+// }
+```
+
+The function clamps an out-of-range page **before** calculating its offset. Invalid totals, pages, or limits throw coded errors.
+
+### `createOffsetPaginationMetadata(options)`
+
+- **Input:** [`OffsetPaginationMetadataOptions`](/docs/api-reference/types#offsetpaginationmetadataoptions): `{ offset: number; limit: number; total: number }`.
+- **Output:** [`OffsetPaginationMetadata`](/docs/api-reference/types#offsetpaginationmetadata).
+
+```ts
+const metadata = createOffsetPaginationMetadata({
+  offset: 40, // Rows skipped
+  limit: 20,  // Rows requested
+  total: 95,  // Total matches
+})
+
+// { total: 95, limit: 20, offset: 40,
+//   hasNextPage: true, hasPreviousPage: true }
+```
+
+Unlike numbered-page metadata, this helper **preserves the offset**, even if it's beyond the end. The inputs are strict numbers: `offset` and `total` must be non-negative safe integers; `limit` must be positive.
+
+### `createPageWindow(options)`
+
+Use this to generate page-number controls for a UI. It doesn't fetch items or return a React component.
+
+- **Input:** [`PageWindowOptions`](/docs/api-reference/types#pagewindowoptions): `{ page, totalPages, siblings?, boundaries? }`.
+- **Output:** [`PaginationPageItem[]`](/docs/api-reference/types#paginationpageitem), an array of page numbers and `"ellipsis"` markers.
+
+```ts
+const buttons = createPageWindow({
+  page: 5,      // Selected page
+  totalPages: 20, // Available pages
+  siblings: 1,  // Pages beside current page (default 1)
+  boundaries: 1, // Pages at each end (default 1)
+})
+
+// [1, "ellipsis", 4, 5, 6, "ellipsis", 20]
+```
+
+Render a number as a link and `"ellipsis"` as a non-clickable gap. If there are no pages (`totalPages: 0`), it returns `[]`. For an illustrated explanation and a React example, see [Build page-number buttons](/docs/guides/page-pagination#build-page-number-buttons).
+
+## Error helper
+
+### `isPaginationError(error)`
+
+- **Input:** `unknown` (usually the caught value from a `try`/`catch`).
+- **Output:** `boolean` at runtime. In TypeScript it narrows the value to [`PaginationError`](/docs/api-reference/types#paginationerror) when it returns `true`.
+
+```ts
+import { isPaginationError } from "@evensurface/paginate"
+
+try {
+  parseLimit(5, { defaultLimit: 20, minLimit: 30, maxLimit: 100 })
+} catch (error) {
+  if (isPaginationError(error)) {
+    console.log(error.code) // "INVALID_DEFAULT_LIMIT"
+  }
+}
+```
+
+This guard identifies core-authored errors, not arbitrary database or Drizzle adapter errors. See [Errors](/docs/api-reference/errors).
+
+## Exported constants
+
+| Constant | Type | Value | Meaning |
+| --- | --- | ---: | --- |
+| `DEFAULT_PAGE_SIZE` | `number` | `20` | Default `limit` when none is valid. |
+| `MIN_PAGE_SIZE` | `number` | `1` | Default smallest allowed limit. |
+| `MAX_PAGE_SIZE` | `number` | `100` | Default largest allowed limit. |
+
+```ts
+import { DEFAULT_PAGE_SIZE, MIN_PAGE_SIZE, MAX_PAGE_SIZE } from "@evensurface/paginate"
+// 20, 1, 100
+```
+
+Want the full interfaces? Visit the [Core Type Reference](/docs/api-reference/types). Using Drizzle? See the separate [Drizzle API Reference](/docs/api-reference/drizzle).

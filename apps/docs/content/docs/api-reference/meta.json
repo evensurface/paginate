@@ -1,0 +1,4 @@
+{
+  "title": "API Reference",
+  "pages": ["index", "types", "drizzle", "drizzle-types", "errors"]
+}

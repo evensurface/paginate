@@ -1,0 +1,331 @@
+---
+title: Drizzle Type Reference
+description: Every public TypeScript type exported by @evensurface/paginate-drizzle.
+---
+
+These types come from **`@evensurface/paginate-drizzle`** and describe the query builders, options, ordering configuration, and errors used by the Drizzle adapter.
+
+```ts
+import type {
+  DrizzlePaginationOptions,
+  DrizzleCursorOrder,
+  DrizzleCursorPaginationOptions,
+} from "@evensurface/paginate-drizzle"
+```
+
+**Type parameters:** `TItem` is one row produced by your Drizzle `.select()` query. For example, if your query selects `{ id: users.id, name: users.name }`, then `TItem` is `{ id: number; name: string }`.
+
+## Page and offset query types
+
+### `DrizzleSelectQuery`
+
+```ts
+interface DrizzleSelectQuery<TItem> {
+  limit(limit: number): DrizzleLimitedQuery<TItem>
+}
+```
+
+The type of a select builder **before** a limit is applied. The Drizzle adapter calls `.limit(limit)` on it. This interface describes only the methods Paginate needs; a real Drizzle builder can have many more methods.
+
+### `DrizzleLimitedQuery`
+
+```ts
+interface DrizzleLimitedQuery<TItem> {
+  offset(offset: number): PromiseLike<TItem[]>
+}
+```
+
+The builder after `.limit()` has been applied. The adapter calls `.offset(offset)`, awaits the result, and receives an array of `TItem` rows. `PromiseLike<TItem[]>` means the object can be awaited like a Promise.
+
+### `DrizzleSelectQueryFactory`
+
+```ts
+type DrizzleSelectQueryFactory<TItem> = () => DrizzleSelectQuery<TItem>
+```
+
+A function that creates a **new** select query whenever Paginate needs to fetch. It receives **no arguments**.
+
+```ts
+const query = () => db.select().from(users).orderBy(asc(users.id))
+```
+
+The `db`, `users`, and `asc` names in that example are from your Drizzle application, not exports from Paginate. Fresh builders matter because the adapter applies `.limit()` and `.offset()` to them and rejects reuse of the same builder.
+
+### `DrizzleCountRow`
+
+```ts
+interface DrizzleCountRow {
+  total: number
+}
+```
+
+One row from a `select({ total: count() })` query. Its `total` field must be a non-negative safe integer.
+
+### `DrizzleCountResult`
+
+```ts
+type DrizzleCountResult = number | readonly DrizzleCountRow[]
+```
+
+The two count result shapes that the adapter supports:
+
+- A **number**, such as `95`, usually from `db.$count()`.
+- A **read-only array** containing exactly one `{ total: number }` row, such as `[{ total: 95 }]`, from a select count query.
+
+An empty array or an array with two or more rows is invalid. So are negative, fractional, or unsafe count values.
+
+### `DrizzleCountQuery`
+
+```ts
+type DrizzleCountQuery = PromiseLike<DrizzleCountResult>
+```
+
+An **awaitable** Drizzle count query. Pass the query itself to `countQuery`; the adapter awaits it when the pagination operation starts. This is not a callback or factory like the select `query`.
+
+## Page and offset option types
+
+### `DrizzlePaginationOptions`
+
+```ts
+interface DrizzlePaginationOptions<TItem> {
+  query: DrizzleSelectQueryFactory<TItem>
+  countQuery: DrizzleCountQuery
+  page?: PaginationInput
+  limit?: PaginationInput
+  pageSizeOptions?: PageSizeOptions
+}
+```
+
+Passed to `paginate()` from `@evensurface/paginate-drizzle`.
+
+| Field | Required? | Meaning |
+| --- | --- | --- |
+| `query` | Yes | Function that builds a new select query, including application filters and stable ordering. |
+| `countQuery` | Yes | Awaitable total count for the **same filters**. |
+| `page` | No | One-based page; defaults to 1. |
+| `limit` | No | Rows per page; defaults to 20 (normally capped at 100). |
+| `pageSizeOptions` | No | Custom page-size policy. |
+
+[`PaginationInput`](/docs/api-reference/types#paginationinput) and [`PageSizeOptions`](/docs/api-reference/types#pagesizeoptions) are exported from the **core** package. The output is [`PaginatedResult<TItem>`](/docs/api-reference/types#paginatedresult).
+
+### `DrizzleOffsetPaginationOptions`
+
+```ts
+interface DrizzleOffsetPaginationOptions<TItem> {
+  query: DrizzleSelectQueryFactory<TItem>
+  countQuery: DrizzleCountQuery
+  offset?: PaginationInput
+  limit?: PaginationInput
+  pageSizeOptions?: PageSizeOptions
+}
+```
+
+Passed to `paginateOffset()` from `@evensurface/paginate-drizzle`. It works like `DrizzlePaginationOptions`, but takes `offset` instead of `page`.
+
+| Field | Required? | Meaning |
+| --- | --- | --- |
+| `query` | Yes | Factory creating a new select query for the fetch. |
+| `countQuery` | Yes | Awaitable count of matching rows. |
+| `offset` | No | Zero-based number of rows to skip. Defaults to 0 and is preserved past the end. |
+| `limit` | No | Maximum rows returned; defaults to 20. |
+| `pageSizeOptions` | No | Optional limit policy. |
+
+The output is [`OffsetPaginatedResult<TItem>`](/docs/api-reference/types#offsetpaginatedresult).
+
+## Cursor query types
+
+Cursor mode does not need a count query or numeric offset.
+
+### `DrizzleCursorSelectQuery`
+
+```ts
+interface DrizzleCursorSelectQuery<TItem> {
+  limit(limit: number): PromiseLike<TItem[]>
+}
+```
+
+A cursor select builder that is ready for a limit. The adapter applies `.limit(requestedLimit + 1)` and awaits the rows. It does **not** call `.offset()`.
+
+### `DrizzleCursorQueryOptions`
+
+```ts
+interface DrizzleCursorQueryOptions {
+  cursorWhere: SQL | undefined
+  orderBy: readonly SQL[]
+}
+```
+
+The argument passed **to your cursor query factory** by the adapter. `SQL` is the expression type from `drizzle-orm`.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `cursorWhere` | `SQL \| undefined` | A Drizzle condition that selects only rows after the cursor. `undefined` on the first request. |
+| `orderBy` | `readonly SQL[]` | Generated ascending/descending order expressions to pass into `.orderBy(...orderBy)`. |
+
+You must combine `cursorWhere` with your own filters using `.where(and(yourFilter, cursorWhere))`, and apply the provided `orderBy`. The adapter cannot check whether you actually used both inside your callback.
+
+### `DrizzleCursorQueryFactory`
+
+```ts
+type DrizzleCursorQueryFactory<TItem> = (
+  options: DrizzleCursorQueryOptions,
+) => DrizzleCursorSelectQuery<TItem>
+```
+
+A callback that accepts the generated cursor condition and ordering expressions, then returns a fresh Drizzle select builder. Unlike the page/offset factory, **it receives an argument**.
+
+```ts
+const query = ({ cursorWhere, orderBy }: DrizzleCursorQueryOptions) =>
+  db.select().from(users).where(cursorWhere).orderBy(...orderBy)
+```
+
+That example only shows the callback shape. Add your own filters and access checks to real queries. See the [complete Drizzle guide](/docs/adapters/drizzle#cursor-pagination).
+
+### `DrizzleCursorValueType`
+
+```ts
+type DrizzleCursorValueType = "string" | "number" | "bigint" | "date"
+```
+
+The runtime representation of an ordering column. Drizzle's built-in column types generally provide this information, but **custom columns** require `valueType` to tell the adapter how to validate and serialize their values.
+
+### `DrizzleCursorOrderEntry`
+
+This type describes **one** ordering key. Its public type is a union that ties the column's data type to the return type of `getValue()`.
+
+The following definition includes its internal helper so you can see the exact type constraints:
+
+```ts
+import type { AnyColumn } from "drizzle-orm"
+
+type DrizzleCursorValueType = "string" | "number" | "bigint" | "date"
+
+type DrizzleCursorOrderEntryBase = {
+  key: string
+  direction: "asc" | "desc"
+}
+
+type DrizzleCursorOrderEntryForValue<
+  TItem,
+  TValue extends string | number | bigint | Date,
+  TValueType extends DrizzleCursorValueType,
+> = DrizzleCursorOrderEntryBase &
+  (
+    | {
+        column: AnyColumn<{ data: TValue; dataType: TValueType; notNull: true }>
+        valueType?: TValueType
+        getValue(item: TItem): TValue
+      }
+    | {
+        column: AnyColumn<{ data: TValue; dataType: "custom"; notNull: true }>
+        valueType: TValueType
+        getValue(item: TItem): TValue
+      }
+  )
+
+export type DrizzleCursorOrderEntry<TItem> =
+  | DrizzleCursorOrderEntryForValue<TItem, string, "string">
+  | DrizzleCursorOrderEntryForValue<TItem, number, "number">
+  | DrizzleCursorOrderEntryForValue<TItem, bigint, "bigint">
+  | DrizzleCursorOrderEntryForValue<TItem, Date, "date">
+```
+
+This shows the effective public constraints; `DrizzleCursorOrderEntryBase` and `DrizzleCursorOrderEntryForValue` are explanatory/internal names, not separate package exports.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `key` | `string` | Stable name stored in the cursor, such as `"createdAt"`. No duplicate names allowed. |
+| `direction` | `"asc" \| "desc"` | Direction for this column. |
+| `column` | `AnyColumn<...>` | A **non-null Drizzle column**, used in the keyset SQL predicate. |
+| `valueType` | [`DrizzleCursorValueType`](#drizzlecursorvaluetype) | Usually optional for built-in columns; **required for custom columns**. |
+| `getValue(item)` | `(item: TItem) => TValue` | Reads that column's value from a selected result row. Must return the matching runtime type. |
+
+Example for an ordinary integer ID column:
+
+```ts
+{
+  key: "id",
+  column: users.id,
+  direction: "asc",
+  getValue: (row) => row.id,
+}
+```
+
+For a custom column that returns strings, add `valueType: "string"` to tell the adapter how to interpret it. The adapter rejects nullable order columns, duplicate keys, invalid values, and cursors whose keys/types don't match the configured order.
+
+### `DrizzleCursorOrder`
+
+```ts
+type DrizzleCursorOrder<TItem> = readonly [
+  DrizzleCursorOrderEntry<TItem>,
+  ...DrizzleCursorOrderEntry<TItem>[],
+]
+```
+
+A **non-empty, read-only** list of cursor ordering entries. Usually the final entry is a unique, immutable ID so that two rows never have the exact same ordering tuple.
+
+Example: `createdAt DESC, id DESC`. See [Drizzle Cursor Pagination](/docs/adapters/drizzle#cursor-pagination) for a full usage example.
+
+### `DrizzleCursorPaginationOptions`
+
+```ts
+interface DrizzleCursorPaginationOptions<TItem> {
+  query: DrizzleCursorQueryFactory<TItem>
+  orderBy: DrizzleCursorOrder<TItem>
+  cursor?: string
+  limit?: PaginationInput
+  pageSizeOptions?: PageSizeOptions
+}
+```
+
+Passed to the Drizzle `paginateCursor()` function.
+
+| Field | Required? | Meaning |
+| --- | --- | --- |
+| `query` | Yes | Callback receiving generated SQL cursor conditions and ordering expressions. |
+| `orderBy` | Yes | Column ordering configuration used to build predicates and cursors. |
+| `cursor` | No | Previous `nextCursor` token; omit for the first request. |
+| `limit` | No | Maximum rows returned (adapter fetches one extra). |
+| `pageSizeOptions` | No | Custom default/minimum/maximum limit policy. |
+
+It returns [`CursorPaginatedResult<TItem>`](/docs/api-reference/types#cursorpaginatedresult). `query` must create a **fresh** builder on each call.
+
+## Drizzle error types
+
+### `DrizzlePaginationError`
+
+A native `RangeError` or `TypeError` with a read-only `code`, depending on the error. It is defined as a union (shown here with its code subsets):
+
+```ts
+type DrizzlePaginationError =
+  | (RangeError & {
+      readonly code: "DRIZZLE_INVALID_COUNT_ROWS" | "DRIZZLE_INVALID_COUNT"
+    })
+  | (TypeError & {
+      readonly code:
+        | "DRIZZLE_QUERY_REUSED"
+        | "DRIZZLE_INVALID_CURSOR_ORDER"
+        | "DRIZZLE_CURSOR_ORDER_MISMATCH"
+    })
+```
+
+Use `isDrizzlePaginationError(error)` to safely identify and narrow these errors. The underlying implementation derives the union from its error-code definitions.
+
+### `DrizzlePaginationErrorCode`
+
+This type is a union of all Drizzle-specific error codes:
+
+```ts
+type DrizzlePaginationErrorCode =
+  | "DRIZZLE_INVALID_COUNT_ROWS"
+  | "DRIZZLE_INVALID_COUNT"
+  | "DRIZZLE_QUERY_REUSED"
+  | "DRIZZLE_INVALID_CURSOR_ORDER"
+  | "DRIZZLE_CURSOR_ORDER_MISMATCH"
+```
+
+For exact causes and handling examples, see [Errors](/docs/api-reference/errors#drizzle-adapter-error-codes).
+
+---
+
+Want the shared pagination types, like `PaginationMetadata`, `CursorPosition`, or `PageSizeOptions`? Visit the [Core Type Reference](/docs/api-reference/types).

@@ -1,0 +1,39 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/black.css";
+@import "fumadocs-ui/css/preset.css";
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  /* biome-ignore lint/complexity/noImportantStyles: Overrides remove-scroll inline compensation for fixed docs layout. */
+  margin-right: 0px !important;
+  /* biome-ignore lint/complexity/noImportantStyles: Keeps Fumadocs scroll-lock from shifting the page horizontally. */
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+p.inline-flex.items-center.gap-2.mb-1.px-2.mt-6 {
+  font-size: 12px;
+}
+
+aside#nd-sidebar {
+  background-color: var(--color-fd-background);
+}
+
+aside#nd-sidebar a[data-active="true"] {
+  color: #0070c9;
+  background-color: #e6f3ff;
+  font-weight: 500;
+}
+
+html.dark aside#nd-sidebar a[data-active="true"] {
+  color: #0087f5;
+  background-color: #04172b;
+}
+
+@layer components {
+  aside#nd-sidebar a {
+    @apply !py-1.5;
+  }
+}

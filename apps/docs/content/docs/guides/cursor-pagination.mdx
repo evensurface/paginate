@@ -1,0 +1,215 @@
+---
+title: Cursor Pagination
+description: Explain how cursor pagination fetches the next batch, including adapter inputs and outputs.
+---
+
+Use `paginateCursor()` when someone keeps clicking **Load more** or scrolling down a feed. Instead of counting records or skipping thousands of rows, you remember where the previous batch ended and fetch the next rows **after that position**.
+
+## How a cursor works
+
+Imagine posts ordered by newest first. A post's position can be described by two values:
+
+- `createdAt`: when it was created.
+- `id`: a unique tie-breaker if two posts have the same timestamp.
+
+The first request has no cursor. Paginate fetches some posts and gives you a `nextCursor` string based on the **last returned post's** values. On the second request, you send that string back. Paginate decodes it, and your adapter uses the values to find later posts.
+
+You don't need to create or decode Base64 strings yourself. The core handles that part. With Drizzle, the integration builds the keyset condition for you; with another data source, your custom adapter must perform the keyset query.
+
+## Use cursor pagination with Drizzle
+
+For a simple feed ordered by a unique user ID, you can use the built-in Drizzle integration without creating an adapter:
+
+```ts
+import { paginateCursor } from "@evensurface/paginate-drizzle"
+import { db } from "./db"
+import { users } from "./schema"
+
+const result = await paginateCursor({
+  query: ({ cursorWhere, orderBy }) =>
+    db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(cursorWhere)
+      .orderBy(...orderBy),
+  orderBy: [
+    {
+      key: "id",
+      column: users.id,
+      direction: "asc",
+      getValue: (user) => user.id,
+    },
+  ],
+  limit: 20,
+})
+```
+
+`query` is a function that receives a generated `cursorWhere` condition (the rows after the previous position) and an `orderBy` array (the SQL ordering). It applies both to a fresh Drizzle query. `orderBy` in the outer options describes **which column controls cursor movement**; `getValue` reads that value from a returned row. `limit: 20` returns at most 20 rows. The result has `items` and a `pagination.nextCursor` token you can send in the next request.
+
+The first request **omits `cursor`**. To get the next batch, pass the previous result's `nextCursor` as the next request's `cursor`. This example assumes `users.id` is a non-null, unique ID. For filtered feeds, combine your access conditions with `cursorWhere` as shown in the [Drizzle cursor guide](/docs/adapters/drizzle#cursor-pagination). See [`DrizzleCursorPaginationOptions`](/docs/api-reference/drizzle-types#drizzlecursorpaginationoptions) for the input type.
+
+## How to create a custom cursor adapter
+
+**Only follow this section if you're using the core package with a non-Drizzle data source.** The Drizzle code above already includes the adapter internally.
+
+A cursor adapter has **two** methods: `fetch()` to read rows after a position, and `getPosition()` to tell Paginate which sort values identify the last row.
+
+Here is a complete example using an in-memory list (the same idea works with a database):
+
+```ts
+import {
+  paginateCursor,
+  type CursorPaginationAdapter,
+} from "@evensurface/paginate"
+
+type Post = {
+  id: number
+  createdAt: Date
+  title: string
+  published: boolean
+}
+
+type PostFilter = { published: boolean }
+
+const posts: Post[] = [
+  { id: 5, createdAt: new Date("2026-11-05T00:00:00Z"), title: "E", published: true },
+  { id: 4, createdAt: new Date("2026-11-04T00:00:00Z"), title: "D", published: true },
+  { id: 3, createdAt: new Date("2026-11-03T00:00:00Z"), title: "C", published: true },
+  { id: 2, createdAt: new Date("2026-11-02T00:00:00Z"), title: "B", published: true },
+  { id: 1, createdAt: new Date("2026-11-01T00:00:00Z"), title: "A", published: true },
+]
+
+const postAdapter: CursorPaginationAdapter<PostFilter, Post> = {
+  async fetch(filter, { position, limit }) {
+    let matches = posts
+      .filter((post) => post.published === filter.published)
+      .sort((a, b) =>
+        b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id,
+      )
+
+    // No position means this is the first batch.
+    if (position !== undefined) {
+      const createdAt = position[0]?.value
+      const id = position[1]?.value
+
+      if (!(createdAt instanceof Date) || typeof id !== "number") {
+        throw new TypeError("Unexpected cursor position")
+      }
+
+      // Descending order: only rows that come AFTER this position.
+      matches = matches.filter(
+        (post) =>
+          post.createdAt.getTime() < createdAt.getTime() ||
+          (post.createdAt.getTime() === createdAt.getTime() && post.id < id),
+      )
+    }
+
+    return matches.slice(0, limit)
+  },
+
+  getPosition(post) {
+    return [
+      { key: "createdAt", direction: "desc", value: post.createdAt },
+      { key: "id", direction: "desc", value: post.id },
+    ]
+  },
+}
+```
+
+Here's what the types mean:
+
+- [`CursorPaginationAdapter<PostFilter, Post>`](/docs/api-reference/types#cursorpaginationadapter) says the filter is a `PostFilter` and returned items are `Post` objects.
+- [`CursorPosition`](/docs/api-reference/types#cursorposition) is a non-empty list of ordering keys. Each key contains a name, a direction (`"asc"` or `"desc"`), and its value.
+- `position` is `undefined` for the first batch. Later batches receive the decoded values of the previous cursor.
+- `getPosition(post)` must return keys in **exactly the same order** as the adapter sorts the posts. It doesn't return a string; the core creates that string for you.
+
+This array implementation is for learning. With a real database, filter and sort **inside the database** instead of loading every row first. The [Drizzle guide](/docs/adapters/drizzle) shows a SQL keyset version.
+
+## 2. Get the first batch
+
+```ts
+const first = await paginateCursor({
+  adapter: postAdapter,
+  query: { published: true },
+  limit: 2,
+  // No cursor: start at the beginning.
+})
+```
+
+Paginate asks `fetch()` for **3** rows, not 2. The extra row is called a *lookahead*: it tells Paginate whether another batch exists. The extra row is **not included** in `items`.
+
+The first response looks like:
+
+```ts
+{
+  items: [
+    { id: 5, /* ...post fields */ },
+    { id: 4, /* ...post fields */ },
+  ],
+  pagination: {
+    limit: 2,
+    nextCursor: "<generated Base64URL token>",
+    hasNextPage: true,
+  },
+}
+```
+
+The token shown here is a placeholder; the actual encoded value is generated automatically. `nextCursor` contains the position of **post 4**, not the extra third post.
+
+## 3. Request the next batch
+
+```ts
+const second = await paginateCursor({
+  adapter: postAdapter,
+  query: { published: true },
+  cursor: first.pagination.nextCursor ?? undefined,
+  limit: 2,
+})
+```
+
+This time the adapter receives the decoded position for post 4 and returns posts 3 and 2 (with post 1 as the lookahead). `hasNextPage` is still `true`. If you repeat the request with the next token, you get post 1 and `nextCursor: null`.
+
+**Don't send an empty string for the first batch**: empty strings are invalid cursor tokens. Simply leave out `cursor` (or pass `undefined`).
+
+## Core API inputs
+
+The table below is for the framework-independent core `paginateCursor()`, which needs an adapter. The Drizzle version uses [`DrizzleCursorPaginationOptions`](/docs/api-reference/drizzle-types#drizzlecursorpaginationoptions) and takes `query` and `orderBy` instead.
+
+The function takes [`CursorPaginationOptions<TQuery, TItem>`](/docs/api-reference/types#cursorpaginationoptions):
+
+| Input | Type | Required? | Meaning |
+| --- | --- | --- | --- |
+| `adapter` | [`CursorPaginationAdapter<TQuery, TItem>`](/docs/api-reference/types#cursorpaginationadapter) | Yes | Fetches rows and extracts ordering values. |
+| `query` | `TQuery` | Yes | Sent to the adapter's `fetch()` method on every request. |
+| `cursor` | `string` | No | The previous result's `nextCursor`; omit for the first batch. |
+| `limit` | [`PaginationInput`](/docs/api-reference/types#paginationinput) | No | Maximum rows **returned**. Default `20`. |
+| `pageSizeOptions` | [`PageSizeOptions`](/docs/api-reference/types#pagesizeoptions) | No | Optional default/minimum/maximum limits. |
+
+The core requests `limit + 1` from your adapter to check for another page. If `limit + 1` cannot be represented safely, it throws `CURSOR_LIMIT_OVERFLOW`.
+
+## Outputs
+
+The return type is [`Promise<CursorPaginatedResult<TItem>>`](/docs/api-reference/types#cursorpaginatedresult). Its metadata is [`CursorPaginationMetadata`](/docs/api-reference/types#cursorpaginationmetadata).
+
+| Output | Type | Meaning |
+| --- | --- | --- |
+| `items` | `TItem[]` | Up to `limit` returned rows. The lookahead row is removed. |
+| `pagination.limit` | `number` | Normalized limit used for this request. |
+| `pagination.nextCursor` | `string \| null` | Send the string on the next request. `null` means no known next batch. |
+| `pagination.hasNextPage` | `boolean` | `true` if the adapter returned more than `limit` rows. |
+
+There is **no** `total`, `offset`, `page`, or built-in `previousCursor` in cursor pagination. It doesn't count the entire list.
+
+## Important rules
+
+1. **Use a stable order.** If you sort by `createdAt DESC`, add a unique tie-breaker such as `id DESC` so rows with equal dates have a consistent order.
+2. **Use non-null ordering values.** V1 supports `string`, finite `number`, `bigint`, and valid `Date` values, not `null`.
+3. **Keep your sort keys consistent.** The query and `getPosition()` must describe exactly the same order. The core doesn't verify arbitrary custom adapters' database ordering.
+4. **Reapply filters and permissions every time.** The token represents a position; it does not grant access to records.
+5. **Handle invalid tokens.** Malformed, oversized, and unsupported cursors throw coded [pagination errors](/docs/api-reference/errors); the core never quietly restarts the feed.
+
+<Warning>
+  Cursor strings are Base64URL-encoded transport values, **not encryption or signatures**. A client can see or modify them. Do not store secrets in cursor keys or trust them as proof of authorization.
+</Warning>
+
+For Drizzle ORM, you can avoid writing the comparison predicate yourself. See [Drizzle Cursor Pagination](/docs/adapters/drizzle#cursor-pagination).

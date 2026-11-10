@@ -1,0 +1,215 @@
+---
+title: Page Pagination
+description: Request page 1, 2, or 3 and get the rows, totals, and navigation details.
+---
+
+Use `paginate()` when people choose numbered pages, like **1, 2, 3, Next, Previous**. Paginate figures out the offset, reads one page, and returns metadata for displaying those controls.
+
+## The easiest way: Drizzle ORM
+
+If you use Drizzle, you can call `paginate()` directly. **No custom adapter needed.**
+
+```ts
+import { asc } from "drizzle-orm"
+import { paginate } from "@evensurface/paginate-drizzle"
+import { db } from "./db"
+import { users } from "./schema"
+
+const result = await paginate({
+  query: () => db.select().from(users).orderBy(asc(users.id)),
+  countQuery: db.$count(users),
+  page: 2,
+  limit: 20,
+})
+```
+
+`query` makes a fresh Drizzle select query; `countQuery` gets the total matching users; `page` is the requested page; and `limit` is the maximum number of users per page. `db` and `users` are your existing Drizzle setup. Follow the [Quick Start](/docs/getting-started/quick-start) for a sample output and each input explained.
+
+## How the framework-independent core works
+
+The rest of this guide also explains the underlying [`@evensurface/paginate`](/docs/api-reference) API, used when you have **your own data adapter**. Drizzle users do not have to write one.
+
+Imagine you have **95** matching users and show **20** per page. You ask for page **2**:
+
+```ts
+import { paginate } from "@evensurface/paginate"
+
+const result = await paginate({
+  adapter: userAdapter,
+  query: { active: true },
+  countQuery: { active: true },
+  page: 2,
+  limit: 20,
+})
+```
+
+Here `userAdapter` is your data-reading adapter; it implements `count()` and `fetch()`. The [custom adapter guide](/docs/adapters/create-your-own) shows how to create one. The query fields `{ active: true }` are example filters; their shape comes from **your own adapter**, not Paginate.
+
+Paginate works in this order:
+
+1. Checks the requested `page` and `limit`.
+2. Calls `userAdapter.count({ active: true })`, which returns `95`.
+3. Calculates `totalPages = Math.ceil(95 / 20) = 5`.
+4. Calculates `offset = (2 - 1) × 20 = 20`.
+5. Calls `userAdapter.fetch({ active: true }, { limit: 20, offset: 20 })`.
+6. Returns the fetched users and the page information below.
+
+## Core API input reference
+
+These are the inputs for the **framework-independent core** function. The Drizzle wrapper uses [`DrizzlePaginationOptions`](/docs/api-reference/drizzle-types#drizzlepaginationoptions) instead and **does not need `adapter`**.
+
+The full TypeScript shape is [`PaginationOptions<TQuery, TCountQuery, TItem>`](/docs/api-reference/types#paginationoptions).
+
+| Input | Type | Required? | What to pass |
+| --- | --- | --- | --- |
+| `adapter` | [`PaginationAdapter<TQuery, TCountQuery, TItem>`](/docs/api-reference/types#paginationadapter) | Yes | The object that counts and fetches your rows. |
+| `query` | `TQuery` | Yes | Passed unchanged to the adapter's `fetch()` method. |
+| `countQuery` | `TCountQuery` | Yes | Passed unchanged to the adapter's `count()` method. |
+| `page` | [`PaginationInput`](/docs/api-reference/types#paginationinput) | No | Page number starting at `1`. Defaults to `1`. |
+| `limit` | [`PaginationInput`](/docs/api-reference/types#paginationinput) | No | Maximum rows per page. Defaults to `20`, normally capped at `100`. |
+| `pageSizeOptions` | [`PageSizeOptions`](/docs/api-reference/types#pagesizeoptions) | No | Override the default/minimum/maximum limit policy. |
+
+`page` can be `2` or `"2"`. Invalid values (`0`, `-1`, `"abc"`, fractions, or unsafe integers) become page `1`. A missing or invalid `limit` becomes the configured default; valid limits are clamped to the configured minimum and maximum.
+
+**If the requested page is too high:** Paginate moves it back to the last page. For 95 rows with a limit of 20, requesting page 999 returns **page 5**, not an empty page.
+
+## Output reference
+
+The return type is [`Promise<PaginatedResult<TItem>>`](/docs/api-reference/types#paginatedresult). `TItem` is whatever your adapter returns—for example, `User`.
+
+```ts
+{
+  items: [/* up to 20 matching User objects */],
+  pagination: {
+    page: 2,
+    limit: 20,
+    offset: 20,
+    total: 95,
+    totalPages: 5,
+    hasNextPage: true,
+    hasPreviousPage: true,
+    firstItem: 21,
+    lastItem: 40,
+  },
+}
+```
+
+The `pagination` field is a [`PaginationMetadata`](/docs/api-reference/types#paginationmetadata) object:
+
+| Output | Type | Meaning for this example |
+| --- | --- | --- |
+| `items` | `TItem[]` | The users returned by your adapter. |
+| `pagination.page` | `number` | `2`: the **resolved** page. |
+| `pagination.limit` | `number` | `20`: maximum users requested. |
+| `pagination.offset` | `number` | `20`: number of matching users skipped. |
+| `pagination.total` | `number` | `95`: matching users across every page. |
+| `pagination.totalPages` | `number` | `5`: number of available pages. |
+| `pagination.hasNextPage` | `boolean` | `true`: page 3 exists. |
+| `pagination.hasPreviousPage` | `boolean` | `true`: page 1 exists. |
+| `pagination.firstItem` | `number` | `21`: one-based position of the first row. |
+| `pagination.lastItem` | `number` | `40`: one-based position of the final possible row. |
+
+`firstItem` and `lastItem` are **positions calculated from the count**, not IDs and not necessarily the number of rows actually fetched. If the database changes between counting and fetching, or your adapter returns fewer rows than requested, they may not match the actual items array exactly.
+
+## What happens when there are zero rows?
+
+If `count()` returns `0`, Paginate does **not** call `fetch()`. The result is:
+
+```ts
+{
+  items: [],
+  pagination: {
+    page: 1,
+    limit: 20,
+    offset: 0,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
+    firstItem: 0,
+    lastItem: 0,
+  },
+}
+```
+
+Notice that `page` is `1` even though `totalPages` is `0`. Page 1 is the default request position; there are simply no available pages to display.
+
+## Build page-number buttons
+
+`paginate()` **doesn't render buttons**. Its metadata tells you which pages exist. Use `createPageWindow()` to generate a short list of page numbers and ellipses for your interface.
+
+```ts
+import { createPageWindow } from "@evensurface/paginate"
+
+const pageItems = createPageWindow({
+  page: 5,
+  totalPages: 20,
+})
+
+// [1, "ellipsis", 4, 5, 6, "ellipsis", 20]
+```
+
+Think of this result as:
+
+```text
+1  …  4  [5]  6  …  20
+```
+
+A **number** means “render a page link.” The string **`"ellipsis"`** means “show a non-clickable gap.” Previous and Next buttons are separate; use `hasPreviousPage` and `hasNextPage` to decide whether they should be enabled.
+
+### `createPageWindow()` inputs
+
+All fields belong to [`PageWindowOptions`](/docs/api-reference/types#pagewindowoptions).
+
+| Input | Type | Required? | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `page` | `number` | Yes | — | Current page. Must be a positive safe integer. |
+| `totalPages` | `number` | Yes | — | Total available pages, including zero for an empty list. |
+| `siblings` | `number` | No | `1` | How many pages to show beside the current page, on each side. |
+| `boundaries` | `number` | No | `1` | How many pages to always show at the start and end. |
+
+It returns [`PaginationPageItem[]`](/docs/api-reference/types#paginationpageitem), which is an array of numbers and `"ellipsis"` values. If `totalPages` is `0`, it returns `[]`.
+
+Want more buttons?
+
+```ts
+createPageWindow({
+  page: 10,
+  totalPages: 30,
+  siblings: 2,
+  boundaries: 2,
+})
+// [1, 2, "ellipsis", 8, 9, 10, 11, 12, "ellipsis", 29, 30]
+```
+
+`8, 9` and `11, 12` are the two siblings on each side of page 10. `1, 2` and `29, 30` are the boundary pages. A gap containing just one missing page is filled with that page number instead of an ellipsis.
+
+### Turn that array into React links
+
+Assume `result` is the `paginate()` result and `pageItems` comes from `createPageWindow()`:
+
+```tsx
+<nav aria-label="Pagination">
+  {pageItems.map((item, index) =>
+    item === "ellipsis" ? (
+      <span key={`gap-${index}`} aria-hidden="true">…</span>
+    ) : (
+      <a
+        key={item}
+        href={`?page=${item}`}
+        aria-current={item === result.pagination.page ? "page" : undefined}
+      >
+        {item}
+      </a>
+    ),
+  )}
+</nav>
+```
+
+The link changes the `page` query parameter; your application reads it and calls `paginate()` again. This is only UI code—Paginate does not depend on React.
+
+## Keep the results predictable
+
+Your adapter's `fetch()` must sort records consistently. If you sort only by a non-unique column like `createdAt`, two rows with the same timestamp may swap order. Add an ID or another unique tie-breaker. Counting and fetching should also use **matching filters**.
+
+See [Offset Pagination](/docs/guides/offset-pagination) if you want to specify how many rows to skip directly, rather than using a page number.

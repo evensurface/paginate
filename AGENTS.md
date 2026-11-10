@@ -41,7 +41,7 @@ starter packages but is not a substitute for tests once behavior is added.
 
 ## Commits, Pull Requests, and Releases
 
-Follow `docs/git-convention.md`: `<type>(<scope>): <imperative summary>`, with a required scope,
+Follow `./git-convention.md`: `<type>(<scope>): <imperative summary>`, with a required scope,
 for example `feat(sdk): add client factory`. Keep each commit to one logical change. Pull requests
 should explain what changed and why, link relevant issues, and list verification commands. Call out
 API changes, risks, and follow-ups. Add a changeset with `pnpm changeset` for publishable changes;

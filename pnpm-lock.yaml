@@ -21,14 +21,14 @@ importers:
         specifier: ^2.10.5
         version: 2.10.5
 
-  demo:
+  apps/demo:
     dependencies:
       '@evensurface/paginate':
         specifier: workspace:*
-        version: link:../packages/paginate
+        version: link:../../packages/paginate
       '@evensurface/paginate-drizzle':
         specifier: workspace:*
-        version: link:../packages/adapter/drizzle
+        version: link:../../packages/adapter/drizzle
       better-sqlite3:
         specifier: ^12.4.1
         version: 12.11.1

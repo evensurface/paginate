@@ -1,5 +1,5 @@
 packages:
-  - "demo"
+  - "apps/*"
   - "packages/*"
   - "packages/adapter/*"
 

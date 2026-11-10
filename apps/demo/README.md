@@ -14,7 +14,7 @@ Then open <http://localhost:3000>. The command runs both the package build watch
 changes to the package can be tested here without publishing it.
 
 `pnpm demo` automatically applies the schema and seeds 47 products before starting. The generated
-database lives at `demo/data/demo.db` and is ignored by Git. Copy `.env.example` to `.env`
+database lives at `apps/demo/data/demo.db` and is ignored by Git. Copy `.env.example` to `.env`
 and set an absolute `PAGINATE_DEMO_DATABASE_PATH` when launching Next.js from another directory.
 
 `pnpm start` does not mutate the database. Run `db:setup` as an explicit deployment step before

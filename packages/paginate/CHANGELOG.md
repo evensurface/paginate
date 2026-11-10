@@ -1,5 +1,11 @@
 # @evensurface/paginate
 
+## 2.1.1
+
+### Patch Changes
+
+- Use stable TypeScript tooling and keep the demo outside package release validation.
+
 ## 2.1.0
 
 ### Minor Changes

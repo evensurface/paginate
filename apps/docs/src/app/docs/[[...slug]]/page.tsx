@@ -3,7 +3,6 @@ import {
   DocsDescription,
   DocsPage,
   DocsTitle,
-  MarkdownCopyButton,
 } from "fumadocs-ui/layouts/docs/page";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -39,22 +38,24 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
 
   return (
     <DocsPage
+      className="pb-16 sm:pb-20"
       toc={page.data.toc}
       full={page.data.full}
-      footer={{ enabled: false }}
+      footer={{ enabled: true }}
     >
-      <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription className="mb-0 text-base">
-        {page.data.description}
-      </DocsDescription>
-      <div className="flex flex-row gap-2 items-center border-b pb-6">
-        <MarkdownCopyButton markdownUrl={markdownUrl} />
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <DocsTitle className="mb-0">{page.data.title}</DocsTitle>
         <ViewOptionsPopover
-          markdownUrl={toAbsoluteUrl(markdownUrl)}
+          className="shrink-0"
+          markdownUrl={markdownUrl}
           pageUrl={pageUrl}
         />
       </div>
-      <DocsBody>
+      <DocsDescription className="mb-0 text-base">
+        {page.data.description}
+      </DocsDescription>
+      <div className="border-b pb-6" />
+      <DocsBody className="pb-10 sm:pb-12">
         <script
           type="application/ld+json"
           // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD is static metadata derived from MDX frontmatter.

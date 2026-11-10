@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { appName, docsImageRoute, gitConfig, packageName } from "./shared";
+import {
+  appName,
+  brandIconPath,
+  docsImageRoute,
+  gitConfig,
+  packageName,
+} from "./shared";
 
 const fallbackSiteUrl = "https://paginate.evensurface.com";
 export const repositoryUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
@@ -66,9 +72,9 @@ export const metadata: Metadata = {
   applicationName: appName,
   category: "Developer tools",
   icons: {
-    icon: "/paginate.svg",
-    shortcut: "/paginate.svg",
-    apple: "/paginate.svg",
+    icon: [{ url: brandIconPath, type: "image/svg+xml" }],
+    shortcut: brandIconPath,
+    apple: brandIconPath,
   },
   alternates: {
     canonical: siteBaseUrl,
@@ -105,6 +111,7 @@ const organization = {
   "@id": `${siteBaseUrl}/#organization`,
   name: "Even Surface",
   url: "https://evensurface.com",
+  logo: toAbsoluteUrl(brandIconPath),
 };
 
 export const structuredData = {

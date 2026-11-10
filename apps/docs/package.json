@@ -6,6 +6,7 @@
     "build": "fumadocs-mdx && next build",
     "dev": "next dev",
     "start": "serve out",
+    "test": "vitest run",
     "types:check": "next typegen && fumadocs-mdx && tsc --noEmit --incremental false",
     "postinstall": "fumadocs-mdx",
     "lint": "biome check",
@@ -33,6 +34,7 @@
     "postcss": "^8.5.17",
     "serve": "^14.2.6",
     "tailwindcss": "^4.3.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.0.18"
   }
 }

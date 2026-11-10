@@ -1,4 +1,5 @@
 export const appName = "Paginate";
+export const brandIconPath = "/evensurface.svg";
 export const packageName = "@evensurface/paginate";
 export const docsRoute = "/docs";
 export const docsImageRoute = "/og/docs";

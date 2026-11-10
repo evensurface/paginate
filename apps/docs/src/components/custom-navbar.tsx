@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ComponentProps, FC, ReactNode } from "react";
 import { useState } from "react";
-import { appName, gitConfig } from "@/lib/shared";
+import { appName, brandIconPath, gitConfig } from "@/lib/shared";
 import { GithubLogo } from "./logo";
 
 const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
@@ -29,14 +29,15 @@ function CustomNavbarBrand() {
       className="inline-flex min-w-0 items-center gap-2.5 text-fd-foreground transition-colors hover:text-fd-primary"
     >
       <Image
-        src="/paginate.svg"
+        src={brandIconPath}
         alt=""
-        width={22}
-        height={22}
+        width={28}
+        height={28}
+        className="rounded-sm"
         aria-hidden="true"
       />
       <span
-        className="truncate text-base lowercase font-medium leading-none"
+        className="truncate text-base lowercase font-medium"
         style={{ fontFamily: "var(--font-geist)" }}
       >
         {appName.replace(" ", "-")}

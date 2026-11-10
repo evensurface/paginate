@@ -1,4 +1,14 @@
 {
   "title": "Paginate",
-  "pages": ["index", "getting-started", "guides", "adapters", "api-reference"]
+  "pages": [
+    "index",
+    "---Getting Started---",
+    "...getting-started",
+    "---Pagination Guides---",
+    "...guides",
+    "---Adapters---",
+    "...adapters",
+    "---API Reference---",
+    "...api-reference"
+  ]
 }

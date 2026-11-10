@@ -1,6 +1,8 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { notFound } from "next/navigation";
 import { ImageResponse } from "next/og";
-import { appName, packageName } from "@/lib/shared";
+import { appName, brandIconPath, packageName } from "@/lib/shared";
 import { getPageImage, source } from "@/lib/source";
 
 export const revalidate = false;
@@ -13,6 +15,12 @@ export async function GET(
   const page = source.getPage(slug.slice(0, -1));
 
   if (!page) return notFound();
+
+  const brandIcon = await readFile(
+    join(process.cwd(), "public", brandIconPath.slice(1)),
+    "base64",
+  );
+  const brandIconUrl = `data:image/svg+xml;base64,${brandIcon}`;
 
   return new ImageResponse(
     <div
@@ -29,21 +37,19 @@ export async function GET(
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-        <div
+        {/* biome-ignore lint/performance/noImgElement: ImageResponse renders its own image tree and cannot use next/image. */}
+        <img
+          src={brandIconUrl}
+          alt=""
+          width="72"
+          height="72"
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
             width: 72,
             height: 72,
             borderRadius: 18,
-            background: "#2563eb",
-            fontSize: 44,
-            fontWeight: 800,
+            objectFit: "cover",
           }}
-        >
-          P
-        </div>
+        />
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ fontSize: 32, fontWeight: 800 }}>{appName}</div>
           <div style={{ color: "#bfdbfe", fontSize: 22 }}>{packageName}</div>

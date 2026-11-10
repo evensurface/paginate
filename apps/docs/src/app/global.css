@@ -21,6 +21,11 @@ aside#nd-sidebar {
   background-color: var(--color-fd-background);
 }
 
+aside#nd-sidebar button[data-collapsed] {
+  align-self: center;
+  margin-block: 0;
+}
+
 aside#nd-sidebar a[data-active="true"] {
   color: #0070c9;
   background-color: #e6f3ff;

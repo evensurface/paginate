@@ -35,7 +35,7 @@ Cursor pagination needs a consistent sort order and normally an index supporting
 
 ## What an adapter means
 
-You **don't need to write an adapter if you use Drizzle ORM**. The `@evensurface/paginate-drizzle` package already provides one. You pass a normal Drizzle query and a count query:
+You **don't need to write an adapter if you use Drizzle ORM or Better Auth**. Both have ready-made integrations. The `@evensurface/paginate-drizzle` package accepts Drizzle queries. You pass a normal Drizzle query and a count query:
 
 ```ts
 import { paginate } from "@evensurface/paginate-drizzle"
@@ -52,9 +52,9 @@ This snippet assumes you already have a Drizzle `db`, a `users` table, and `asc`
 
 Behind the scenes, the adapter translates the request into **count the matching rows**, then **fetch up to 20 rows after skipping 20**. An adapter is the bridge that knows how to run those operations on a particular data source.
 
-If you're using a different ORM or fetching from an API, you can provide that bridge yourself using the [core adapter interface](/docs/adapters/create-your-own). Its `count()` method reports the total and its `fetch()` method returns the rows; the cursor version uses `fetch()` and `getPosition()` instead. The exact types are [`PaginationAdapter`](/docs/api-reference/types#paginationadapter) and [`CursorPaginationAdapter`](/docs/api-reference/types#cursorpaginationadapter).
+For Better Auth, pass `ctx.context.adapter` and a model name to [`@evensurface/paginate-better-auth`](/docs/adapters/better-auth); it supports page and offset modes, not cursors. If you're using another ORM or fetching from an API, you can provide that bridge yourself using the [core adapter interface](/docs/adapters/create-your-own). Its `count()` method reports the total and its `fetch()` method returns the rows; the cursor version uses `fetch()` and `getPosition()` instead. The exact types are [`PaginationAdapter`](/docs/api-reference/types#paginationadapter) and [`CursorPaginationAdapter`](/docs/api-reference/types#cursorpaginationadapter).
 
-Read [Adapters Explained](/docs/adapters) if you want to see the inputs, outputs, and how this works internally. **It isn't a prerequisite for using Drizzle.**
+Read [Adapters Explained](/docs/adapters) if you want to see the inputs, outputs, and how this works internally. **It isn't a prerequisite for using Drizzle or Better Auth.**
 
 ## Understanding inputs and defaults
 

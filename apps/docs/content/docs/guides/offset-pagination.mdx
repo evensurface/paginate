@@ -28,9 +28,26 @@ const result = await paginateOffset({
 
 This asks Drizzle to count users, then **skip 40** and return **up to 20** more. The Drizzle integration takes care of the `count()` and `fetch()` methods internally. No custom adapter is needed. See the [Quick Start](/docs/getting-started/quick-start) to learn how the select factory and count query work.
 
+## Use an offset with Better Auth
+
+```ts
+import { paginateOffset } from "@evensurface/paginate-better-auth"
+
+const result = await paginateOffset<{ id: string }>({
+  adapter: ctx.context.adapter,
+  model: "user",
+  select: ["id"],
+  sortBy: { field: "id", direction: "asc" },
+  offset: 40,
+  limit: 20,
+})
+```
+
+In a Better Auth plugin endpoint, `ctx.context.adapter` is your database adapter. The wrapper counts matching rows, applies `offset`, and returns offset metadata. It does not accept `countQuery`; add your security and tenant constraints in `where`. See [Better Auth Adapter](/docs/adapters/better-auth).
+
 ## Framework-independent core example
 
-If you use another ORM or a custom data source, the core package takes an adapter with `count()` and `fetch()` methods:
+If you use an ORM without a ready-made integration or a custom data source, the core package takes an adapter with `count()` and `fetch()` methods:
 
 ```ts
 import { paginateOffset } from "@evensurface/paginate"
@@ -55,7 +72,7 @@ If the adapter counts 95 matching users, the call:
 
 ## Core API inputs
 
-The table below describes the core `paginateOffset()` API used with custom adapters. With Drizzle, use [`DrizzleOffsetPaginationOptions`](/docs/api-reference/drizzle-types#drizzleoffsetpaginationoptions), which has `query`, `countQuery`, `offset`, `limit`, and optional `pageSizeOptions`—but **no `adapter` field**.
+The table below describes the core `paginateOffset()` API used with custom adapters. With Drizzle, use [`DrizzleOffsetPaginationOptions`](/docs/api-reference/drizzle-types#drizzleoffsetpaginationoptions), which has `query`, `countQuery`, `offset`, `limit`, and optional `pageSizeOptions`—but **no `adapter` field**. With Better Auth, use [`BetterAuthOffsetPaginationOptions`](/docs/api-reference/better-auth-types#betterauthoffsetpaginationoptions), which takes `adapter` and `model`, without separate `query` or `countQuery` fields.
 
 All inputs are defined in [`OffsetPaginationOptions<TQuery, TCountQuery, TItem>`](/docs/api-reference/types#offsetpaginationoptions).
 

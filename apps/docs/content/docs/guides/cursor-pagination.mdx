@@ -5,6 +5,8 @@ description: Explain how cursor pagination fetches the next batch, including ada
 
 Use `paginateCursor()` when someone keeps clicking **Load more** or scrolling down a feed. Instead of counting records or skipping thousands of rows, you remember where the previous batch ended and fetch the next rows **after that position**.
 
+The [Better Auth integration](/docs/adapters/better-auth) supports page and offset pagination only; it does **not** provide `paginateCursor()`. Use Drizzle or a custom core cursor adapter when you need keyset pagination.
+
 ## How a cursor works
 
 Imagine posts ordered by newest first. A post's position can be described by two values:

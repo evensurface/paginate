@@ -1,0 +1,223 @@
+---
+title: Better Auth Adapter
+description: Paginate Better Auth database models by page number or offset, with filters, selections, and relationships.
+---
+
+Use **`@evensurface/paginate-better-auth`** to paginate records through the database adapter that Better Auth already provides. You do not implement a new pagination adapter or construct a Drizzle query. Pass Better Auth's `ctx.context.adapter`, choose a `model`, and request a page or offset.
+
+The integration supports **page-number** and **zero-based offset** pagination. It also forwards Better Auth's `where`, `sortBy`, `select`, and `join` options.
+
+## 1. Install
+
+```bash
+pnpm add @evensurface/paginate-better-auth better-auth
+```
+
+Or with npm:
+
+```bash
+npm install @evensurface/paginate-better-auth better-auth
+```
+
+This package depends on the core `@evensurface/paginate` engine. Its declared compatibility is **Node.js 22.18 or newer** and **Better Auth `>=1.7.18 <1.8.0`**. The core package and Drizzle integration have different Node.js requirements; use this package's requirement for a Better Auth application.
+
+The examples below assume you are inside a **server-side Better Auth plugin endpoint**. `ctx` is the endpoint context and `session` is an authenticated session resolved by your application. The `follow` model is an example of a **schema-defined plugin model**; it is not a built-in Better Auth model.
+
+## 2. Paginate by page number
+
+```ts
+import { paginate } from "@evensurface/paginate-better-auth"
+
+interface Follow {
+  id: string
+  followerId: string
+  followingId: string
+  createdAt: Date
+}
+
+const result = await paginate<Follow>({
+  adapter: ctx.context.adapter,
+  model: "follow",
+  where: [{ field: "followerId", value: session.user.id }],
+  sortBy: { field: "id", direction: "asc" },
+  page: 1,
+  limit: 2,
+})
+```
+
+With three matching follows, the result has the following shape:
+
+```ts
+{
+  items: [follow1, follow2],
+  pagination: {
+    page: 1,
+    limit: 2,
+    offset: 0,
+    total: 3,
+    totalPages: 2,
+    hasNextPage: true,
+    hasPreviousPage: false,
+    firstItem: 1,
+    lastItem: 2,
+  },
+}
+```
+
+`follow1` and `follow2` stand for the matching database records, not names supplied by the package. The count includes **all** matching follows, not only the two returned in `items`. The output is [`PaginatedResult<Follow>`](/docs/api-reference/types#paginatedresult).
+
+### Accept page and limit from a request
+
+`page` and `limit` accept a number or numeric string, so your endpoint can forward parsed query values:
+
+```ts
+const result = await paginate<Follow>({
+  adapter: ctx.context.adapter,
+  model: "follow",
+  where: [{ field: "followerId", value: session.user.id }],
+  sortBy: { field: "id", direction: "asc" },
+  page: ctx.query.page,
+  limit: ctx.query.limit,
+})
+```
+
+This assumes your endpoint defines `page` and `limit` in its query schema. Missing or invalid request values fall back to page `1` and limit `20`. Valid limits normally clamp to `1–100`; configure different bounds with `pageSizeOptions`. Out-of-range page numbers resolve to the last available page.
+
+## 3. Paginate from an offset
+
+Use `paginateOffset()` if the client sends a number of rows to skip, rather than a page number:
+
+```ts
+import { paginateOffset } from "@evensurface/paginate-better-auth"
+
+const result = await paginateOffset<Follow>({
+  adapter: ctx.context.adapter,
+  model: "follow",
+  where: [{ field: "followerId", value: session.user.id }],
+  sortBy: { field: "id", direction: "asc" },
+  offset: 1,
+  limit: 2,
+})
+```
+
+With three matching follows, the response is:
+
+```ts
+{
+  items: [follow2, follow3],
+  pagination: {
+    total: 3,
+    limit: 2,
+    offset: 1,
+    hasNextPage: false,
+    hasPreviousPage: true,
+  },
+}
+```
+
+Offset mode preserves the requested, zero-based offset, even if it is beyond the end; in that case `items` is empty. Its metadata has **no** `page`, `totalPages`, `firstItem`, or `lastItem` fields. See [`OffsetPaginatedResult<TItem>`](/docs/api-reference/types#offsetpaginatedresult).
+
+## 4. Filter, sort, and select fields
+
+These options come from Better Auth's public `findMany()` contract:
+
+| Option | Purpose | Important behavior |
+| --- | --- | --- |
+| `model` | Name of the Better Auth or plugin-defined model | Must exist in your configured schema. |
+| `where` | Filter the **primary** model | The same `where` is used by both count and fetch. |
+| `sortBy` | Sort primary records by one field | Optional, but a unique sort key such as `id` is recommended. |
+| `select` | Return selected primary-model fields | When combined with `sortBy`, it must include the sort field. |
+| `join` | Load schema-defined related records | Joined records do not change the primary-model total. |
+
+For example, to return only IDs:
+
+```ts
+const result = await paginate<{ id: string }>({
+  adapter: ctx.context.adapter,
+  model: "follow",
+  where: [{ field: "followerId", value: session.user.id }],
+  select: ["id"],
+  sortBy: { field: "id", direction: "asc" },
+  page: 1,
+  limit: 10,
+})
+
+// result.items is typed as Array<{ id: string }>
+```
+
+If `select` is non-empty and `sortBy` is supplied, the selected fields **must include** `sortBy.field`. Otherwise, the wrapper throws `TypeError` before querying. When no `sortBy` is provided, the database decides the order; a non-unique field also leaves ties ambiguous because Better Auth accepts only one sorting field.
+
+## 5. Load relationships with `join`
+
+Better Auth can load relationships described by your schema. For example, suppose a plugin declares a `project` model and a `task` model whose `projectId` field references `project.id`:
+
+```ts
+interface ProjectWithTasks {
+  id: string
+  name: string
+  task: Array<{
+    id: string
+    projectId: string
+    title: string
+  }>
+}
+
+const result = await paginate<ProjectWithTasks>({
+  adapter: ctx.context.adapter,
+  model: "project",
+  select: ["id", "name"],
+  join: { task: { limit: 3 } },
+  sortBy: { field: "id", direction: "asc" },
+  page: 1,
+  limit: 10,
+})
+```
+
+The outer `limit: 10` applies to **projects**. The nested `join.task.limit: 3` applies to **tasks per project**. `pagination.total` counts projects matching `where`, not tasks or the number of joined rows.
+
+Important rules and limitations:
+
+- A non-empty primary-model `select` must include **`id`** whenever an enabled `join` is present. An empty `select` has no selection restriction.
+- A related-record `join` limit must be a **positive safe integer**. The wrapper rejects zero, negative, fractional, infinite, or unsafe limits before database calls.
+- Schema-defined relationships require exactly one unambiguous foreign-key path. Missing or ambiguous paths produce Better Auth errors.
+- One-to-many relationships return arrays; one-to-one relationships return an object or `null`.
+- Joins **do not filter** which primary records are counted or fetched. Better Auth does not expose filtering or sorting for joined collections here; a limited related collection is an adapter-defined subset, **not a guaranteed earliest or latest N**.
+- Native joins may create large intermediate result sets for multiple one-to-many relationships. Fallback joins may issue an additional query for each primary row and relationship. Consider separate queries for expensive or deterministic relationship reads.
+
+The wrapper copies the `select` array, `join` map, and each object-valued join option before forwarding them. This protects those caller-owned inputs from mutations by the Better Auth adapter. Depending on how joins run, unselected schema fields can be absent or present with `undefined`; handle either shape.
+
+## 6. Understand the returned types
+
+Better Auth accepts model and field names as strings. It **cannot infer a row type** from `model`, `select`, or `join` at compile time. Supply the result shape explicitly:
+
+```ts
+const result = await paginate<ProjectWithTasks>({
+  adapter: ctx.context.adapter,
+  model: "project",
+  select: ["id", "name"],
+  join: { task: { limit: 3 } },
+  sortBy: { field: "id", direction: "asc" },
+})
+```
+
+The generic `ProjectWithTasks` is a **caller assertion**, not schema validation: make sure it matches the fields and relationships you request. Without a generic, `items` defaults to `Record<string, unknown>[]`. Drizzle's query-based row inference is different; see the [Drizzle guide](/docs/adapters/drizzle).
+
+## 7. Query execution, safety, and errors
+
+1. The wrapper validates the supported `select` and `join` combinations.
+2. Core pagination parses and normalizes `page`/`offset` and `limit`.
+3. The wrapper calls Better Auth `adapter.count({ model, where })`.
+4. Core pagination computes metadata and skips fetching if the count is zero or the offset is beyond the result set.
+5. Otherwise it calls `adapter.findMany({ model, where, sortBy, select, join, limit, offset })`, omitting optional options that were not provided.
+
+`count()` and `findMany()` are **separate operations**. Concurrent writes can cause counts and returned items to reflect different snapshots. This package does not create transactions or change your database's consistency guarantees.
+
+**Security:** `where` must include the tenant, user, authorization, and soft-delete conditions your application requires. Pagination does not add those rules. Authenticate and authorize the endpoint before returning rows; do not let untrusted clients choose arbitrary model names, fields, or joins.
+
+The integration itself can throw **`TypeError`** for incompatible `select`/`join` configurations. Core pagination may throw coded errors detectable with `isPaginationError()` from `@evensurface/paginate`; Better Auth database failures pass through unchanged. See [Errors](/docs/api-reference/errors#better-auth-adapter-errors).
+
+## Features intentionally outside this adapter
+
+The Better Auth adapter **does not expose cursor pagination**, custom count queries, route registration, or authorization policies. For forward-only keyset feeds, use the [Drizzle cursor integration](/docs/adapters/drizzle#cursor-pagination) or implement a [custom core cursor adapter](/docs/adapters/create-your-own#cursor-fetch-and-getposition).
+
+For exact function signatures, read the [Better Auth API Reference](/docs/api-reference/better-auth) and [Better Auth Types](/docs/api-reference/better-auth-types).

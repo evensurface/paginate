@@ -3,7 +3,7 @@ title: Create Your Own Adapter
 description: "Advanced guide: connect the core package to another ORM, HTTP service, or array."
 ---
 
-**You only need this page if you are connecting Paginate to a data source without a ready-made integration.** If your app uses Drizzle ORM, go to the [Quick Start](/docs/getting-started/quick-start) instead—no adapter setup is required.
+**You only need this page if you are connecting Paginate to a data source without a ready-made integration.** For Drizzle ORM, start with the [Quick Start](/docs/getting-started/quick-start); for Better Auth, use the [Better Auth Adapter Guide](/docs/adapters/better-auth). Neither requires building a pagination adapter.
 
 An adapter is a plain JavaScript object with a few methods. Paginate calls those methods; **your implementation decides where the data comes from**. You don't need to extend a class or register anything globally.
 

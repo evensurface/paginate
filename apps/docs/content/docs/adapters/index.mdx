@@ -1,13 +1,19 @@
 ---
 title: Adapters Explained
-description: Understand what an adapter does, and why Drizzle users don't need to write one.
+description: Choose the Drizzle or Better Auth integration, or connect another data source using the core adapter API.
 ---
 
-An **adapter** is just a translator between Paginate and the place where your data lives. Paginate knows how many items to request and where the next group begins. The adapter knows how to turn that request into database queries or API calls.
+An **adapter** translates Paginate's request for a count and a slice of records into the operations supported by your database or API. You only write one yourself if your data source does not already have an integration.
 
-**The important part: if you use Drizzle ORM, the adapter is already included. You don't have to create one.**
+## Choose the integration for your project
 
-## Start with the built-in Drizzle integration
+| Your data source | Package | Pagination modes | What you provide |
+| --- | --- | --- | --- |
+| **Drizzle ORM** | [`@evensurface/paginate-drizzle`](/docs/adapters/drizzle) | Page, offset, cursor | A Drizzle query factory; a count query for page/offset. |
+| **Better Auth** | [`@evensurface/paginate-better-auth`](/docs/adapters/better-auth) | Page, offset | Better Auth's database `adapter`, a model name, and optional filters. |
+| **Other ORM, API, or array** | [`@evensurface/paginate`](/docs/adapters/create-your-own) | Page, offset, cursor | A small custom adapter following the relevant core interface. |
+
+## Drizzle example
 
 ```ts
 import { asc } from "drizzle-orm"
@@ -23,27 +29,40 @@ const result = await paginate({
 })
 ```
 
-This is all you write for ordinary page pagination. `query` tells Drizzle which rows to select and in what order; `countQuery` counts matching rows; `page` chooses the page; `limit` controls the maximum items on it. The package handles the rest.
+The Drizzle wrapper executes `countQuery` and applies limit/offset to the select built by your query factory. Its returned item types are inferred from Drizzle. Start with the [Quick Start](/docs/getting-started/quick-start) or [Drizzle ORM Adapter](/docs/adapters/drizzle).
 
-For the full explanation and output, follow the [Quick Start](/docs/getting-started/quick-start) or [Drizzle guide](/docs/adapters/drizzle).
+## Better Auth example
 
-## So what is happening behind the scenes?
+```ts
+import { paginate } from "@evensurface/paginate-better-auth"
 
-Suppose your Drizzle table has **35 users** and you request `page: 2, limit: 10`:
+const result = await paginate<{ id: string }>({
+  adapter: ctx.context.adapter,
+  model: "user",
+  select: ["id"],
+  sortBy: { field: "id", direction: "asc" },
+  page: 2,
+  limit: 10,
+})
+```
 
-1. Paginate needs the total, so the Drizzle integration runs your `countQuery` and receives `35`.
-2. Paginate calculates `offset = (2 - 1) × 10 = 10`.
-3. The integration calls your `query` function to build a fresh select query.
-4. It adds `.limit(10).offset(10)` and executes that query in Drizzle.
-5. Paginate returns up to 10 users plus metadata such as `total: 35`, `totalPages: 4`, and `hasNextPage: true`.
+`ctx.context.adapter` belongs to your **server-side Better Auth plugin endpoint**. The wrapper calls Better Auth's `count()` and `findMany()` internally. Better Auth model names are strings, so the caller supplies an explicit item type when precise typing is needed. Enforce authorization and tenant filters in the endpoint. See [Better Auth Adapter](/docs/adapters/better-auth) for joins, input validation, and compatibility requirements.
 
-The **adapter** handles steps 1, 3, and 4. You never need to call its methods yourself when using the Drizzle wrapper.
+## What happens inside a page request?
 
-## When would I write an adapter myself?
+For **35 matching records** and `page: 2, limit: 10`, Paginate:
 
-Only when you're connecting the framework-independent core package to something it doesn't already support. For example, you might want to paginate results from another ORM, a REST API, or an in-memory collection.
+1. Normalizes the requested page and limit.
+2. Counts matching primary records (`35`).
+3. Calculates `offset = (2 - 1) × 10 = 10`.
+4. Fetches at most `10` records starting after the first `10` matches.
+5. Returns `items` plus metadata such as `total: 35`, `totalPages: 4`, and `hasNextPage: true`.
 
-For page and offset pagination, your adapter implements two methods:
+Drizzle and Better Auth run these operations through different database APIs. Both count and fetch separately; concurrent changes can make the results reflect different snapshots.
+
+## When should I write a custom adapter?
+
+If your source is not Drizzle or Better Auth, implement the framework-independent core contract:
 
 ```ts
 interface PaginationAdapter<TQuery, TCountQuery, TItem> {
@@ -55,19 +74,6 @@ interface PaginationAdapter<TQuery, TCountQuery, TItem> {
 }
 ```
 
-This is the **shape of an interface**, not code you need to copy into a Drizzle project. The type [`PaginationAdapter<TQuery, TCountQuery, TItem>`](/docs/api-reference/types#paginationadapter) is already exported by the core package.
+`count()` returns the number of matching records. `fetch()` returns up to `limit` rows after skipping `offset`. See [`PaginationAdapter`](/docs/api-reference/types#paginationadapter) and [Create Your Own Adapter](/docs/adapters/create-your-own).
 
-- `count(query)` receives the filters needed for counting and returns a `Promise<number>` containing the total matching items. If 35 items match, it resolves to `35`.
-- `fetch(query, { limit, offset })` receives the filters and how many matches to take or skip. It returns `Promise<TItem[]>` containing the selected rows. With `{ limit: 10, offset: 10 }`, it should return up to 10 rows after skipping the first 10 matches.
-- `TQuery` is the type of the fetch input, `TCountQuery` is the type of the count input, and `TItem` is the type of a returned row. You choose these based on your data source.
-
-For **cursor pagination**, the custom contract is different: it uses `fetch(query, { position, limit })` and `getPosition(item)`, without counting. See [`CursorPaginationAdapter`](/docs/api-reference/types#cursorpaginationadapter) and the [custom adapter guide](/docs/adapters/create-your-own).
-
-## Which path should I follow?
-
-| Your project | What to do |
-| --- | --- |
-| **Uses Drizzle ORM** | Use [`@evensurface/paginate-drizzle`](/docs/adapters/drizzle). No custom adapter to write. |
-| **Uses another database library or API** | Use [`@evensurface/paginate`](/docs/adapters/create-your-own) and implement the adapter for your data source. |
-
-The [Create Your Own Adapter](/docs/adapters/create-your-own) page is an **advanced integration guide**, not a required setup step.
+**Cursor pagination uses a different interface**: `fetch(query, { position, limit })` and `getPosition(item)`, with no count. It is available in the Drizzle integration or through a custom core adapter, **not through the Better Auth wrapper**. See [Cursor Pagination](/docs/guides/cursor-pagination).

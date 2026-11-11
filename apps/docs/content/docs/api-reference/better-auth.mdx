@@ -1,0 +1,114 @@
+---
+title: Better Auth API Reference
+description: Public functions exported by @evensurface/paginate-better-auth, including options and return values.
+---
+
+**`@evensurface/paginate-better-auth`** exposes two runtime functions, both using a Better Auth database adapter. It does not export a standalone adapter factory, HTTP endpoints, or a cursor-paginating function.
+
+```ts
+import { paginate, paginateOffset } from "@evensurface/paginate-better-auth"
+```
+
+For a complete example with filters and relationships, start with the [Better Auth Adapter Guide](/docs/adapters/better-auth).
+
+## `paginate<TItem>(options)`
+
+Returns one **1-based numbered page** of records from a Better Auth model.
+
+- **Input:** [`BetterAuthPaginationOptions`](/docs/api-reference/better-auth-types#betterauthpaginationoptions).
+- **Output:** `Promise<`[`PaginatedResult<TItem>`](/docs/api-reference/types#paginatedresult)`>`.
+- **Generic:** `TItem extends object = Record<string, unknown>`; supply a row type explicitly when needed.
+
+```ts
+import { paginate } from "@evensurface/paginate-better-auth"
+
+const result = await paginate<{ id: string }>({
+  adapter: ctx.context.adapter,
+  model: "user",
+  select: ["id"],
+  sortBy: { field: "id", direction: "asc" },
+  page: "2",
+  limit: "20",
+})
+```
+
+`ctx.context.adapter` is available in a Better Auth plugin endpoint. The snippet shows mechanics only; an actual endpoint exposing users must enforce its own authorization and filters.
+
+`pagination` contains `page`, `limit`, `offset`, `total`, `totalPages`, `hasNextPage`, `hasPreviousPage`, `firstItem`, and `lastItem`. The core normalizes invalid request values, clamps out-of-range pages, and skips fetching if the count is zero.
+
+## `paginateOffset<TItem>(options)`
+
+Returns records beginning at a **zero-based numeric offset**, without turning it into a page number.
+
+- **Input:** [`BetterAuthOffsetPaginationOptions`](/docs/api-reference/better-auth-types#betterauthoffsetpaginationoptions).
+- **Output:** `Promise<`[`OffsetPaginatedResult<TItem>`](/docs/api-reference/types#offsetpaginatedresult)`>`.
+- **Generic:** `TItem extends object = Record<string, unknown>`.
+
+```ts
+import { paginateOffset } from "@evensurface/paginate-better-auth"
+
+const result = await paginateOffset<{ id: string }>({
+  adapter: ctx.context.adapter,
+  model: "user",
+  select: ["id"],
+  sortBy: { field: "id", direction: "asc" },
+  offset: "7",
+  limit: 20,
+})
+```
+
+`pagination` contains only `total`, `limit`, `offset`, `hasNextPage`, and `hasPreviousPage`. An offset at or beyond the count returns `items: []` **without clamping the offset** or running a fetch.
+
+## Shared inputs
+
+| Field | Type | Required | Behavior |
+| --- | --- | --- | --- |
+| `adapter` | [`BetterAuthDatabaseAdapter`](/docs/api-reference/better-auth-types#betterauthdatabaseadapter) | Yes | Supplies Better Auth's `count` and `findMany` operations. |
+| `model` | `BetterAuthFindManyOptions["model"]` | Yes | Name of the primary Better Auth model. |
+| `where` | `BetterAuthFindManyOptions["where"]` | No | Primary-model filter array forwarded to both count and fetch. |
+| `sortBy` | [`BetterAuthSortBy`](/docs/api-reference/better-auth-types#betterauthsortby) | No | A single sort field and `"asc"` or `"desc"`. |
+| `select` | [`BetterAuthSelect`](/docs/api-reference/better-auth-types#betterauthselect) | No | Fields selected on the primary model. |
+| `join` | [`BetterAuthJoin`](/docs/api-reference/better-auth-types#betterauthjoin) | No | Schema-defined related records to load. |
+| `limit` | [`PaginationInput`](/docs/api-reference/types#paginationinput) | No | Defaults to `20`, ordinarily clamped to `1–100`. |
+| `pageSizeOptions` | [`PageSizeOptions`](/docs/api-reference/types#pagesizeoptions) | No | Override default, minimum, and maximum page size. |
+| `page` | [`PaginationInput`](/docs/api-reference/types#paginationinput) | Page only | Defaults to `1`, then clamps against available pages. |
+| `offset` | [`PaginationInput`](/docs/api-reference/types#paginationinput) | Offset only | Defaults to `0`; any valid non-negative safe integer is accepted. |
+
+The package passes no caller-defined `countQuery`. It always counts the same `model` and `where` used for fetching; `sortBy`, `select`, and `join` are **fetch-only** options.
+
+## Validation and ordering
+
+The wrapper checks these rules **before** counting:
+
+1. If any enabled join is present and `select` is non-empty, `select` must contain `"id"`.
+2. If `sortBy` is present and `select` is non-empty, `select` must contain `sortBy.field`.
+3. Any object-valued join option with a `limit` must use a positive safe integer.
+
+Violations throw `TypeError` with messages such as:
+
+```text
+select must include "id" when join is enabled
+select must include sortBy.field "id" when sortBy is provided
+join.task.limit must be a positive safe integer
+```
+
+The wrapper does **not** invent a default order. Without `sortBy`, the database chooses an order; stable navigation generally requires a unique sort field such as `id`. Better Auth supports just one `sortBy` field in this contract.
+
+## Execution and error behavior
+
+Both functions first call `adapter.count({ model, where })`, then conditionally call `adapter.findMany()` with `limit` and `offset`. Fetching is skipped if there are no matching records or if the offset lies outside the result set.
+
+- **Core errors:** Coded `RangeError` instances recognized by `isPaginationError()` from `@evensurface/paginate`.
+- **Better Auth wrapper validation:** Plain `TypeError` instances for the rules above; there is **no** `isBetterAuthPaginationError()` export or Better Auth-specific error code family.
+- **Database errors:** Errors from Better Auth's `count()` or `findMany()` are propagated unchanged.
+
+Find examples in the [Errors reference](/docs/api-reference/errors#better-auth-adapter-errors). The wrapper does not implement authorization, transactions, cursor pagination, or separate custom count queries.
+
+## Runtime exports
+
+| Export | Purpose |
+| --- | --- |
+| `paginate` | 1-based page-number pagination through Better Auth. |
+| `paginateOffset` | Zero-based offset pagination through Better Auth. |
+
+The package also exports the TypeScript aliases and interfaces documented in [Better Auth Types](/docs/api-reference/better-auth-types). `PaginatedResult`, `OffsetPaginatedResult`, `PaginationInput`, and `PageSizeOptions` are defined and exported by the **core** `@evensurface/paginate` package.

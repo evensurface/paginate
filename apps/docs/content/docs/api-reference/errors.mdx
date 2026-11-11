@@ -5,7 +5,7 @@ description: Learn which pagination errors to handle and what each error code me
 
 Most invalid **request inputs** are handled automatically. For example, `page: "abc"` becomes page `1`, while an invalid `limit` uses the configured default. You don't need a `try`/`catch` for every bad URL parameter.
 
-However, **invalid configuration**, unsafe calculations, and malformed cursor tokens produce errors. There are also special errors for mistakes in the Drizzle adapter setup.
+However, **invalid configuration**, unsafe calculations, and malformed cursor tokens produce errors. Drizzle adds its own adapter errors; Better Auth validates a few incompatible `select` and `join` combinations before querying.
 
 ## Core pagination errors
 
@@ -90,10 +90,44 @@ function explainPaginationError(error: unknown): string | null {
 
 The function returns a string for known pagination errors and `null` for unknown ones; **it does not send an HTTP response**. Your route handler decides whether to return a client error for a bad cursor or an internal error for a broken configuration. Do not expose confidential database details in API responses.
 
+## Better Auth adapter errors
+
+`@evensurface/paginate-better-auth` has **no separate coded error family** and does not export `isBetterAuthPaginationError()`. It throws ordinary `TypeError` instances for three unsupported cross-adapter combinations:
+
+| Condition | Error message |
+| --- | --- |
+| Non-empty `select` with an enabled `join` but without `"id"` | `select must include "id" when join is enabled` |
+| Non-empty `select` with `sortBy` but without `sortBy.field` | `select must include sortBy.field "<field>" when sortBy is provided` |
+| Related join `limit` is not a positive safe integer | `join.<model>.limit must be a positive safe integer` |
+
+These errors happen **before** `count()` or `findMany()`. Invalid pagination configuration and invalid counts still produce **core** pagination errors, detectable with `isPaginationError()`. If you import this guard directly, declare `@evensurface/paginate` as a dependency of your project (`pnpm add @evensurface/paginate`), even though the Better Auth wrapper already depends on it.
+
+```ts
+import { isPaginationError } from "@evensurface/paginate"
+import { paginate } from "@evensurface/paginate-better-auth"
+
+try {
+  await paginate({
+    adapter: ctx.context.adapter,
+    model: "user",
+    select: ["id"],
+    sortBy: { field: "id", direction: "asc" },
+  })
+} catch (error) {
+  if (isPaginationError(error)) {
+    console.error(error.code) // A core pagination error
+  } else {
+    throw error // Better Auth, wrapper TypeError, or an unexpected failure
+  }
+}
+```
+
+Do **not** treat every `TypeError` as a pagination validation error: Better Auth and application code can also throw `TypeError`. Database adapter failures pass through unchanged. See [Better Auth API](/docs/api-reference/better-auth#execution-and-error-behavior).
+
 ## What these guards do not catch
 
-- Database connection failures, SQL errors, and exceptions from your own adapter are passed through unchanged.
+- Database connection failures, SQL errors, Better Auth adapter errors, and exceptions from your own adapter are passed through unchanged.
 - `isPaginationError()` identifies core-created errors, not Drizzle-created ones. `isDrizzlePaginationError()` does the reverse.
 - The guards are meant for identifying errors in the same JavaScript realm, including common duplicate ESM/CommonJS package instances. They are **not a security boundary** against forged objects, and they don't recognize cross-realm errors or errors whose special properties were lost during serialization.
 
-For helper behavior and exact inputs, return to the [Core API Reference](/docs/api-reference) or the [Drizzle API Reference](/docs/api-reference/drizzle).
+For helper behavior and exact inputs, return to the [Core API Reference](/docs/api-reference), [Drizzle API Reference](/docs/api-reference/drizzle), or [Better Auth API Reference](/docs/api-reference/better-auth).

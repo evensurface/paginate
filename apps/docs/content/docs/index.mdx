@@ -1,13 +1,13 @@
 ---
 title: Paginate
-description: Simple pagination for TypeScript and Drizzle ORM—pages, offsets, and cursors without the repetitive work.
+description: Page, offset, and cursor pagination for TypeScript, Drizzle ORM, and Better Auth.
 ---
 
 Imagine your app has **950 users**, but you only want to show 20 at a time. You need to fetch the right users, know whether a next page exists, and return that information to your UI.
 
 **Paginate handles the pagination work.** You provide your database query and the page size; Paginate calculates the page, normalizes the inputs, fetches the right rows, and returns navigation information.
 
-If you use **Drizzle ORM**, you can start straight away—**no custom adapter required**.
+If you use **Drizzle ORM or Better Auth**, there is a ready-made integration—**no custom pagination adapter required**.
 
 ## Get started with Drizzle
 
@@ -37,6 +37,29 @@ Here, `query` describes which users to fetch, `countQuery` counts all matching u
 
 The `db` and `users` imports refer to your own Drizzle setup. For a complete walkthrough—including the exact output and why `query` is a function—read the [Quick Start](/docs/getting-started/quick-start).
 
+## Using Better Auth?
+
+Paginate Better Auth models through the database adapter already available in your plugin endpoint:
+
+```bash
+pnpm add @evensurface/paginate-better-auth better-auth
+```
+
+```ts
+import { paginate } from "@evensurface/paginate-better-auth"
+
+const result = await paginate<{ id: string }>({
+  adapter: ctx.context.adapter,
+  model: "user",
+  select: ["id"],
+  sortBy: { field: "id", direction: "asc" },
+  page: 1,
+  limit: 20,
+})
+```
+
+`ctx` is your **server-side Better Auth plugin endpoint context**. Authenticate and authorize requests before accessing user records. The Better Auth integration supports **page and offset** pagination, not cursor pagination; it requires Node.js `>=22.18` and Better Auth `>=1.7.18 <1.8.0`. See the [Better Auth Adapter Guide](/docs/adapters/better-auth) for scoped filters, selections, joins, and typed results.
+
 ## Choose a pagination style
 
 | Style | Function | What it means | Good for |
@@ -49,12 +72,12 @@ All three return `{ items, pagination }`, but the fields in `pagination` differ.
 
 ## What is an adapter? Do I need one?
 
-An adapter is the connection between Paginate's pagination logic and a data source. **`@evensurface/paginate-drizzle` already includes that connection**, so Drizzle users just pass a query and call `paginate()`.
+An adapter is the connection between Paginate's pagination logic and a data source. **Drizzle and Better Auth integrations already provide that connection.** Drizzle uses query builders; Better Auth uses its existing database adapter and model names.
 
 If you use a different ORM, service, or custom data source, the core [`@evensurface/paginate`](https://www.npmjs.com/package/@evensurface/paginate) package lets you provide your own adapter. You only need to learn that interface if you're building a custom integration. See [Adapters explained](/docs/adapters).
 
 ## Where to go next
 
-Start with the [Quick Start](/docs/getting-started/quick-start). Then read [Core Concepts](/docs/getting-started/core-concepts) or [Choosing a Strategy](/docs/getting-started/choosing-a-strategy). For exact input and output types, use [Core Types](/docs/api-reference/types) and [Drizzle Types](/docs/api-reference/drizzle-types).
+Start with the [Drizzle Quick Start](/docs/getting-started/quick-start) or [Better Auth Guide](/docs/adapters/better-auth). Then read [Core Concepts](/docs/getting-started/core-concepts) or [Choosing a Strategy](/docs/getting-started/choosing-a-strategy). For exact types, use [Core Types](/docs/api-reference/types), [Drizzle Types](/docs/api-reference/drizzle-types), or [Better Auth Types](/docs/api-reference/better-auth-types).
 
-**Requirements:** Node.js 18.18 or newer. Both ESM and CommonJS are supported; TypeScript gives you type checking and inferred database rows.
+**Requirements:** The core and Drizzle packages require Node.js 18.18 or newer; the Better Auth package requires Node.js 22.18 or newer. All three provide ESM and CommonJS builds. Drizzle infers selected row types; Better Auth requires the caller to specify them for precise typing.

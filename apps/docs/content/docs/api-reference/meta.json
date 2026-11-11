@@ -1,4 +1,12 @@
 {
   "title": "API Reference",
-  "pages": ["index", "types", "drizzle", "drizzle-types", "errors"]
+  "pages": [
+    "index",
+    "types",
+    "drizzle",
+    "drizzle-types",
+    "better-auth",
+    "better-auth-types",
+    "errors"
+  ]
 }

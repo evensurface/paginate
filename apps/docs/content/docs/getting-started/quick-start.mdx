@@ -1,7 +1,9 @@
 ---
 title: Quick Start
-description: Install Paginate and fetch your first page with Drizzle ORM—no custom adapter required.
+description: Fetch your first page with Drizzle ORM; Better Auth users can follow the dedicated adapter guide.
 ---
+
+This is the **Drizzle ORM quick start**. Using Better Auth instead? Follow the [Better Auth Adapter Guide](/docs/adapters/better-auth)—its API takes a Better Auth database adapter and model name, not Drizzle queries.
 
 If you already use **Drizzle ORM**, you can start paginating immediately. You **do not need to create an adapter**, write a `count()` function, or work out offsets yourself. The Drizzle integration handles those details.
 
@@ -175,7 +177,7 @@ You may see an **adapter** mentioned in the [core API](/docs/api-reference) or t
 
 **With Drizzle, that adapter is already built for you.** You call `paginate()` from `@evensurface/paginate-drizzle` and pass Drizzle queries, as shown above. You do **not** create an adapter object.
 
-**Without Drizzle**, the framework-independent `@evensurface/paginate` package lets you write a small adapter for Prisma, another ORM, an HTTP API, or even an array. That's an **advanced integration choice**, not a step everyone must complete. Read [Adapters explained](/docs/adapters) when you actually need it.
+**If you use Better Auth**, its [ready-made adapter](/docs/adapters/better-auth) also avoids custom `count()` and `fetch()` implementations. For other ORMs, HTTP APIs, or arrays, the framework-independent `@evensurface/paginate` package lets you write a small adapter. That is an **advanced integration choice**, not a step everyone must complete. Read [Adapters explained](/docs/adapters) when you actually need it.
 
 ## Next steps
 
@@ -183,3 +185,4 @@ You may see an **adapter** mentioned in the [core API](/docs/api-reference) or t
 - [Offset Pagination](/docs/guides/offset-pagination) uses `offset` instead of `page`.
 - [Cursor Pagination](/docs/guides/cursor-pagination) loads the next batch without counting.
 - [Drizzle ORM Guide](/docs/adapters/drizzle) shows all three modes with real Drizzle queries.
+- [Better Auth Adapter](/docs/adapters/better-auth) shows page and offset pagination using Better Auth database models.

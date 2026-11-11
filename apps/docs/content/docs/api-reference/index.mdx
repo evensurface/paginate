@@ -3,7 +3,7 @@ title: Core API Reference
 description: Every public function and constant in @evensurface/paginate, with inputs and outputs.
 ---
 
-**This is the lower-level core API**, intended for custom data sources and advanced integrations. **If you use Drizzle, start with the [Quick Start](/docs/getting-started/quick-start) or [Drizzle API](/docs/api-reference/drizzle) instead.** Its `paginate()` function accepts Drizzle queries directly and does not require an `adapter` argument.
+**This is the lower-level core API**, intended for custom data sources and advanced integrations. **Using Drizzle?** Start with the [Quick Start](/docs/getting-started/quick-start) or [Drizzle API](/docs/api-reference/drizzle); the Drizzle wrapper's `paginate()` function accepts Drizzle queries directly and does not require an `adapter` argument. **Using Better Auth?** See the [Better Auth API](/docs/api-reference/better-auth) and [Better Auth Types](/docs/api-reference/better-auth-types) instead.
 
 This page covers the public JavaScript functions exported by **`@evensurface/paginate`**. You import them from the package root:
 
@@ -253,4 +253,4 @@ import { DEFAULT_PAGE_SIZE, MIN_PAGE_SIZE, MAX_PAGE_SIZE } from "@evensurface/pa
 // 20, 1, 100
 ```
 
-Want the full interfaces? Visit the [Core Type Reference](/docs/api-reference/types). Using Drizzle? See the separate [Drizzle API Reference](/docs/api-reference/drizzle).
+Want the full interfaces? Visit the [Core Type Reference](/docs/api-reference/types). Using an integration? See the separate [Drizzle API Reference](/docs/api-reference/drizzle) or [Better Auth API Reference](/docs/api-reference/better-auth).

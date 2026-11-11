@@ -25,9 +25,28 @@ const result = await paginate({
 
 `query` makes a fresh Drizzle select query; `countQuery` gets the total matching users; `page` is the requested page; and `limit` is the maximum number of users per page. `db` and `users` are your existing Drizzle setup. Follow the [Quick Start](/docs/getting-started/quick-start) for a sample output and each input explained.
 
+## Use page pagination with Better Auth
+
+Better Auth has a separate, ready-made wrapper. Use it inside a **server-side Better Auth plugin endpoint**:
+
+```ts
+import { paginate } from "@evensurface/paginate-better-auth"
+
+const result = await paginate<{ id: string }>({
+  adapter: ctx.context.adapter,
+  model: "user",
+  select: ["id"],
+  sortBy: { field: "id", direction: "asc" },
+  page: 2,
+  limit: 20,
+})
+```
+
+Better Auth uses `model`, `where`, `sortBy`, `select`, and `join` rather than a Drizzle query factory or a custom `countQuery`. Secure your endpoint before exposing records. See the [Better Auth Adapter Guide](/docs/adapters/better-auth).
+
 ## How the framework-independent core works
 
-The rest of this guide also explains the underlying [`@evensurface/paginate`](/docs/api-reference) API, used when you have **your own data adapter**. Drizzle users do not have to write one.
+The rest of this guide also explains the underlying [`@evensurface/paginate`](/docs/api-reference) API, used when you have **your own data adapter**. Drizzle and Better Auth users do not have to write one. The Better Auth wrapper accepts [`BetterAuthPaginationOptions`](/docs/api-reference/better-auth-types#betterauthpaginationoptions) rather than the core `query` and `countQuery` fields.
 
 Imagine you have **95** matching users and show **20** per page. You ask for page **2**:
 
@@ -56,7 +75,7 @@ Paginate works in this order:
 
 ## Core API input reference
 
-These are the inputs for the **framework-independent core** function. The Drizzle wrapper uses [`DrizzlePaginationOptions`](/docs/api-reference/drizzle-types#drizzlepaginationoptions) instead and **does not need `adapter`**.
+These are the inputs for the **framework-independent core** function. The Drizzle wrapper uses [`DrizzlePaginationOptions`](/docs/api-reference/drizzle-types#drizzlepaginationoptions) and **does not need `adapter`**. The Better Auth wrapper uses [`BetterAuthPaginationOptions`](/docs/api-reference/better-auth-types#betterauthpaginationoptions) with the existing Better Auth database adapter, `model`, and optional `where`, `sortBy`, `select`, and `join`.
 
 The full TypeScript shape is [`PaginationOptions<TQuery, TCountQuery, TItem>`](/docs/api-reference/types#paginationoptions).
 

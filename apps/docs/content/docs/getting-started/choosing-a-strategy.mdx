@@ -14,6 +14,16 @@ There isn't one pagination mode that's always best. The easiest choice comes fro
 | Does it require counting? | Yes | Yes | **No** |
 | Does it avoid scanning past very large offsets? | No | No | **Yes, with a suitable indexed keyset query** |
 
+## Check what your integration supports
+
+| Integration | Page | Offset | Cursor |
+| --- | --- | --- | --- |
+| [Drizzle ORM](/docs/adapters/drizzle) | Yes | Yes | Yes |
+| [Better Auth](/docs/adapters/better-auth) | Yes | Yes | No |
+| [Custom core adapter](/docs/adapters/create-your-own) | Yes | Yes | Yes, with a cursor adapter |
+
+The Better Auth wrapper uses its public `count()` and `findMany()` database operations. It does **not** expose cursor pagination. If you need a keyset feed, use Drizzle or implement a core cursor adapter.
+
 ## Example 1: Admin table → Page
 
 Your application shows 950 users. Someone wants page 7, and you want to show “121–140 of 950.” Use [`paginate()`](/docs/guides/page-pagination).

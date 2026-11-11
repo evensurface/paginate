@@ -1,0 +1,165 @@
+---
+title: Better Auth Type Reference
+description: TypeScript option interfaces and aliases exported by @evensurface/paginate-better-auth.
+---
+
+The Better Auth integration derives its filter, ordering, selection, and join types from Better Auth's **public database adapter contract**, rather than redefining those fields in Paginate.
+
+```ts
+import type {
+  BetterAuthDatabaseAdapter,
+  BetterAuthFindManyOptions,
+  BetterAuthWhere,
+  BetterAuthSortBy,
+  BetterAuthSelect,
+  BetterAuthJoin,
+  BetterAuthPaginationOptions,
+  BetterAuthOffsetPaginationOptions,
+} from "@evensurface/paginate-better-auth"
+```
+
+## Database adapter and query aliases
+
+### `BetterAuthDatabaseAdapter`
+
+```ts
+import type { AuthContext } from "better-auth"
+
+type BetterAuthDatabaseAdapter = Pick<
+  AuthContext["adapter"],
+  "count" | "findMany"
+>
+```
+
+Only the `count` and `findMany` operations are required. You generally supply the adapter already available inside a Better Auth plugin endpoint as `ctx.context.adapter`.
+
+### `BetterAuthFindManyOptions`
+
+```ts
+type BetterAuthFindManyOptions =
+  Parameters<BetterAuthDatabaseAdapter["findMany"]>[0]
+```
+
+This is Better Auth's actual `findMany` options type, not a custom query-builder type. It provides the source of the remaining public aliases.
+
+### `BetterAuthWhere`
+
+```ts
+type BetterAuthWhere =
+  NonNullable<BetterAuthFindManyOptions["where"]>[number]
+```
+
+The alias represents **one** Better Auth filter entry. To pass filters to `paginate()`, use the **array** accepted by `where`:
+
+```ts
+const where: BetterAuthWhere[] = [
+  { field: "followerId", value: "user-1" },
+]
+```
+
+The same filter array is used for counting and fetching. Logical operators and value types follow the installed Better Auth version's public adapter contract.
+
+### `BetterAuthSortBy`
+
+```ts
+type BetterAuthSortBy =
+  NonNullable<BetterAuthFindManyOptions["sortBy"]>
+```
+
+For example, `{ field: "id", direction: "asc" }`. Better Auth's public contract supports sorting by a **single** field with ascending or descending direction. A unique field is recommended for stable page traversal.
+
+### `BetterAuthSelect`
+
+```ts
+type BetterAuthSelect =
+  NonNullable<BetterAuthFindManyOptions["select"]>
+```
+
+For example, `["id", "name"]`. An enabled join requires `"id"` in a non-empty selection, and sorting requires the sort field in that selection.
+
+### `BetterAuthJoin`
+
+```ts
+type BetterAuthJoin =
+  NonNullable<BetterAuthFindManyOptions["join"]>
+```
+
+For example, `{ task: { limit: 3 } }` or `{ projectDetail: true }` for relationships declared in a Better Auth schema. A related `limit` must be a positive safe integer; the join itself does not affect the primary-model `total`.
+
+## Pagination option interfaces
+
+### `BetterAuthPaginationOptions`
+
+The exported interface extends an internal common-options interface. The equivalent expanded public field shape is:
+
+```ts
+interface BetterAuthPaginationOptions {
+  adapter: BetterAuthDatabaseAdapter
+  model: BetterAuthFindManyOptions["model"]
+  where?: BetterAuthFindManyOptions["where"]
+  sortBy?: BetterAuthSortBy
+  select?: BetterAuthSelect
+  join?: BetterAuthJoin
+  page?: PaginationInput
+  limit?: PaginationInput
+  pageSizeOptions?: PageSizeOptions
+}
+```
+
+`PaginationInput` and `PageSizeOptions` come from `@evensurface/paginate`. `page` is **1-based** and defaults to `1`. `limit` defaults to `20` and is normally capped at `100`.
+
+The function result is `Promise<`[`PaginatedResult<TItem>`](/docs/api-reference/types#paginatedresult)`>`.
+
+### `BetterAuthOffsetPaginationOptions`
+
+The equivalent expanded field shape differs only by replacing `page` with `offset`:
+
+```ts
+interface BetterAuthOffsetPaginationOptions {
+  adapter: BetterAuthDatabaseAdapter
+  model: BetterAuthFindManyOptions["model"]
+  where?: BetterAuthFindManyOptions["where"]
+  sortBy?: BetterAuthSortBy
+  select?: BetterAuthSelect
+  join?: BetterAuthJoin
+  offset?: PaginationInput
+  limit?: PaginationInput
+  pageSizeOptions?: PageSizeOptions
+}
+```
+
+`offset` is **0-based** and defaults to `0`. It remains unchanged when greater than or equal to the count. The return type is `Promise<`[`OffsetPaginatedResult<TItem>`](/docs/api-reference/types#offsetpaginatedresult)`>`.
+
+## Result item typing
+
+Both functions accept an explicit generic:
+
+```ts
+interface Follow {
+  id: string
+  followerId: string
+}
+
+const result = await paginate<Follow>({
+  adapter: ctx.context.adapter,
+  model: "follow",
+  sortBy: { field: "id", direction: "asc" },
+})
+
+// result.items: Follow[]
+```
+
+If you omit the generic, the result items have type **`Record<string, unknown>[]`**. Passing `<Follow>` does not prove the selected model or fields match that shape: Better Auth's string-based `model`, `select`, and `join` inputs do not support this inference. Specify a narrower type when selecting fewer columns.
+
+```ts
+const selected = await paginate<Pick<Follow, "id">>({
+  adapter: ctx.context.adapter,
+  model: "follow",
+  select: ["id"],
+  sortBy: { field: "id", direction: "asc" },
+})
+
+// selected.items: Array<{ id: string }>
+```
+
+For full result metadata definitions, see [Core Types](/docs/api-reference/types#paginationmetadata) and [Offset Metadata](/docs/api-reference/types#offsetpaginationmetadata). For the callable API, read the [Better Auth API Reference](/docs/api-reference/better-auth).

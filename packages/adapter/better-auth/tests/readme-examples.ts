@@ -8,6 +8,16 @@ interface Follow {
   createdAt: Date
 }
 
+interface SelectedProject {
+  id: string
+  name: string
+  task: Array<{
+    id: string
+    projectId: string
+    title: string
+  }>
+}
+
 export async function compileReadmeExamples(
   adapter: AuthContext["adapter"],
   userId: string,
@@ -35,5 +45,27 @@ export async function compileReadmeExamples(
     limit,
   })
 
-  return { pageResult, offsetResult }
+  const selectedResult = await paginate<Pick<Follow, "id">>({
+    adapter,
+    model: "follow",
+    select: ["id"],
+    sortBy,
+  })
+
+  const joinedResult = await paginate<SelectedProject>({
+    adapter,
+    model: "project",
+    select: ["id", "name"],
+    join: { task: { limit: 3 } },
+    sortBy,
+  })
+
+  const unsortedResult = await paginateOffset<Follow>({
+    adapter,
+    model: "follow",
+    offset,
+    limit,
+  })
+
+  return { pageResult, offsetResult, selectedResult, joinedResult, unsortedResult }
 }

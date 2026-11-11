@@ -21,10 +21,18 @@ export type BetterAuthWhere = NonNullable<BetterAuthFindManyOptions["where"]>[nu
 /** Better Auth's single-field ordering contract. */
 export type BetterAuthSortBy = NonNullable<BetterAuthFindManyOptions["sortBy"]>
 
+/** Better Auth's field-selection contract. */
+export type BetterAuthSelect = NonNullable<BetterAuthFindManyOptions["select"]>
+
+/** Better Auth's relationship-loading contract. */
+export type BetterAuthJoin = NonNullable<BetterAuthFindManyOptions["join"]>
+
 interface BetterAuthQuery {
   model: BetterAuthFindManyOptions["model"]
   where?: BetterAuthFindManyOptions["where"]
-  sortBy: BetterAuthSortBy
+  sortBy?: BetterAuthSortBy
+  select?: BetterAuthSelect
+  join?: BetterAuthJoin
 }
 
 interface BetterAuthPaginationBaseOptions extends BetterAuthQuery {
@@ -46,8 +54,39 @@ function createPaginationAdapter<TItem extends object>(
 ): PaginationAdapter<BetterAuthQuery, BetterAuthQuery, TItem> {
   return {
     count: ({ model, where }) => adapter.count({ model, where }),
-    fetch: ({ model, where, sortBy }, { limit, offset }) =>
-      adapter.findMany<TItem>({ model, where, sortBy, limit, offset }),
+    fetch: ({ model, where, sortBy, select, join }, { limit, offset }) =>
+      adapter.findMany<TItem>({
+        model,
+        where,
+        limit,
+        offset,
+        ...(sortBy === undefined ? {} : { sortBy }),
+        ...(select === undefined ? {} : { select: [...select] }),
+        ...(join === undefined ? {} : { join }),
+      }),
+  }
+}
+
+function validateFindManyOptions({ sortBy, select, join }: BetterAuthQuery): void {
+  const enabledJoins = Object.entries(join ?? {}).filter(([, option]) => Boolean(option))
+
+  for (const [model, option] of enabledJoins) {
+    if (typeof option !== "object" || option.limit === undefined) continue
+    if (!Number.isSafeInteger(option.limit) || option.limit <= 0) {
+      throw new TypeError(`join.${model}.limit must be a positive safe integer`)
+    }
+  }
+
+  if (!select?.length) return
+
+  if (enabledJoins.length > 0 && !select.includes("id")) {
+    throw new TypeError('select must include "id" when join is enabled')
+  }
+
+  if (sortBy !== undefined && !select.includes(sortBy.field)) {
+    throw new TypeError(
+      `select must include sortBy.field "${sortBy.field}" when sortBy is provided`,
+    )
   }
 }
 
@@ -57,16 +96,19 @@ function createPaginationAdapter<TItem extends object>(
  * Better Auth does not infer a row type from `model` through its database
  * adapter API. Supply `TItem` explicitly when a precise item type is needed.
  */
-export function paginate<TItem extends object = Record<string, unknown>>({
+export async function paginate<TItem extends object = Record<string, unknown>>({
   adapter,
   model,
   where,
   sortBy,
+  select,
+  join,
   page,
   limit,
   pageSizeOptions,
 }: BetterAuthPaginationOptions): Promise<PaginatedResult<TItem>> {
-  const query: BetterAuthQuery = { model, where, sortBy }
+  const query: BetterAuthQuery = { model, where, sortBy, select, join }
+  validateFindManyOptions(query)
 
   return paginateCore({
     adapter: createPaginationAdapter<TItem>(adapter),
@@ -84,16 +126,19 @@ export function paginate<TItem extends object = Record<string, unknown>>({
  * Better Auth does not infer a row type from `model` through its database
  * adapter API. Supply `TItem` explicitly when a precise item type is needed.
  */
-export function paginateOffset<TItem extends object = Record<string, unknown>>({
+export async function paginateOffset<TItem extends object = Record<string, unknown>>({
   adapter,
   model,
   where,
   sortBy,
+  select,
+  join,
   offset,
   limit,
   pageSizeOptions,
 }: BetterAuthOffsetPaginationOptions): Promise<OffsetPaginatedResult<TItem>> {
-  const query: BetterAuthQuery = { model, where, sortBy }
+  const query: BetterAuthQuery = { model, where, sortBy, select, join }
+  validateFindManyOptions(query)
 
   return paginateOffsetCore({
     adapter: createPaginationAdapter<TItem>(adapter),

@@ -3,6 +3,8 @@ import type { AuthContext } from "better-auth"
 import { describe, expect, expectTypeOf, it, vi } from "vitest"
 import {
   type BetterAuthDatabaseAdapter,
+  type BetterAuthJoin,
+  type BetterAuthSelect,
   type BetterAuthSortBy,
   type BetterAuthWhere,
   paginate,
@@ -77,6 +79,107 @@ describe("Better Auth pagination", () => {
     expect(result.pagination).toMatchObject({ page: 3, total: 25, offset: 20 })
     expectTypeOf(result.items).toEqualTypeOf<Follow[]>()
   })
+
+  it("forwards fetch-only options without leaking them into count", async () => {
+    const { adapter, count, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
+    const select = ["id"]
+    const join = { profile: { limit: 1 } }
+
+    await paginate<Follow>({
+      adapter,
+      model: "follow",
+      where,
+      sortBy,
+      select,
+      join,
+    })
+
+    expect(count).toHaveBeenCalledWith({ model: "follow", where })
+    expect(findMany).toHaveBeenCalledWith({
+      model: "follow",
+      where,
+      sortBy,
+      select,
+      join,
+      limit: 20,
+      offset: 0,
+    })
+  })
+
+  it("omits optional findMany options instead of inventing an order", async () => {
+    const { adapter, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
+
+    await paginate({ adapter, model: "follow" })
+
+    expect(findMany).toHaveBeenCalledWith({
+      model: "follow",
+      where: undefined,
+      limit: 20,
+      offset: 0,
+    })
+    expect(findMany.mock.calls[0]?.[0]).not.toHaveProperty("sortBy")
+    expect(findMany.mock.calls[0]?.[0]).not.toHaveProperty("select")
+    expect(findMany.mock.calls[0]?.[0]).not.toHaveProperty("join")
+  })
+
+  it("accepts empty selections and joins containing only disabled entries", async () => {
+    const { adapter, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
+    const select: string[] = []
+    const join = { profile: false }
+
+    await paginate({ adapter, model: "follow", select, join })
+
+    expect(findMany).toHaveBeenCalledWith({
+      model: "follow",
+      where: undefined,
+      select,
+      join,
+      limit: 20,
+      offset: 0,
+    })
+  })
+
+  it("rejects non-portable select combinations before querying", async () => {
+    const { adapter, count, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
+
+    await expect(
+      paginate({
+        adapter,
+        model: "follow",
+        select: ["followerId"],
+        join: { profile: true },
+      }),
+    ).rejects.toThrow('select must include "id" when join is enabled')
+
+    await expect(
+      paginateOffset({
+        adapter,
+        model: "follow",
+        select: ["followerId"],
+        sortBy,
+      }),
+    ).rejects.toThrow('select must include sortBy.field "id" when sortBy is provided')
+
+    expect(count).not.toHaveBeenCalled()
+    expect(findMany).not.toHaveBeenCalled()
+  })
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects a non-portable join limit of %s before querying",
+    async (joinLimit) => {
+      const { adapter, count, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
+
+      await expect(
+        paginate({
+          adapter,
+          model: "follow",
+          join: { profile: { limit: joinLimit } },
+        }),
+      ).rejects.toThrow("join.profile.limit must be a positive safe integer")
+      expect(count).not.toHaveBeenCalled()
+      expect(findMany).not.toHaveBeenCalled()
+    },
+  )
 
   it("supports arbitrary offsets and custom page-size options", async () => {
     const items = Array.from({ length: 50 }, (_, index) => ({
@@ -231,12 +334,33 @@ describe("Better Auth pagination", () => {
     expectTypeOf<BetterAuthSortBy>().toEqualTypeOf<
       NonNullable<Parameters<AuthContext["adapter"]["findMany"]>[0]["sortBy"]>
     >()
+    expectTypeOf<BetterAuthSelect>().toEqualTypeOf<
+      NonNullable<Parameters<AuthContext["adapter"]["findMany"]>[0]["select"]>
+    >()
+    expectTypeOf<BetterAuthJoin>().toEqualTypeOf<
+      NonNullable<Parameters<AuthContext["adapter"]["findMany"]>[0]["join"]>
+    >()
     expectTypeOf<BetterAuthWhere>().toMatchTypeOf<{ field: string }>()
 
-    const defaultResult = paginate({ adapter: createAdapter([]).adapter, model: "follow", sortBy })
+    const defaultResult = paginate({ adapter: createAdapter([]).adapter, model: "follow" })
     expectTypeOf<Awaited<typeof defaultResult>["items"]>().toEqualTypeOf<
       Record<string, unknown>[]
     >()
+
+    const selectedResult = paginate<Pick<Follow, "id">>({
+      adapter: createAdapter([]).adapter,
+      model: "follow",
+      select: ["id"],
+    })
+    expectTypeOf<Awaited<typeof selectedResult>["items"]>().toEqualTypeOf<Pick<Follow, "id">[]>()
+
+    // Better Auth's caller-selected generic cannot be correlated with its string-based select.
+    const callerAssertedResult = paginate<Follow>({
+      adapter: createAdapter([]).adapter,
+      model: "follow",
+      select: ["id"],
+    })
+    expectTypeOf<Awaited<typeof callerAssertedResult>["items"]>().toEqualTypeOf<Follow[]>()
 
     // @ts-expect-error Better Auth only supports ascending or descending directions.
     const invalidSort: BetterAuthSortBy = { field: "id", direction: "sideways" }

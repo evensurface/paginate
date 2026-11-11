@@ -7,16 +7,16 @@ These functions come from **`@evensurface/paginate-drizzle`**, not the framework
 
 ```ts
 import {
-  paginate,
-  paginateOffset,
-  paginateCursor,
+  paginateDrizzle,
+  paginateDrizzleOffset,
+  paginateDrizzleCursor,
   createDrizzleAdapter,
   createDrizzleCursorAdapter,
   isDrizzlePaginationError,
 } from "@evensurface/paginate-drizzle"
 ```
 
-## `paginate(options)`
+## `paginateDrizzle(options)`
 
 Uses a Drizzle select-query **factory** and a matching **count query** to return one numbered page.
 
@@ -24,7 +24,7 @@ Uses a Drizzle select-query **factory** and a matching **count query** to return
 - **Output:** `Promise<`[`PaginatedResult<TItem>`](/docs/api-reference/types#paginatedresult)`>`.
 
 ```ts
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () => db.select().from(users).orderBy(asc(users.id)),
   countQuery: db.$count(users),
   page: 2,
@@ -34,15 +34,15 @@ const result = await paginate({
 
 `db`, `users`, and `asc` are from your Drizzle setup; see [Drizzle ORM Adapter](/docs/adapters/drizzle) for complete imports and schema examples. **`query` is a function** because each fetch needs a fresh query builder. **`countQuery` is the query to await**, not a function that Paginate will call. The selected row type is inferred.
 
-## `paginateOffset(options)`
+## `paginateDrizzleOffset(options)`
 
-Works like `paginate()`, but uses a zero-based offset instead of a numbered page.
+Works like `paginateDrizzle()`, but uses a zero-based offset instead of a numbered page.
 
 - **Input:** [`DrizzleOffsetPaginationOptions<TItem>`](/docs/api-reference/drizzle-types#drizzleoffsetpaginationoptions): `query`, `countQuery`, optional `offset`, `limit`, `pageSizeOptions`.
 - **Output:** `Promise<`[`OffsetPaginatedResult<TItem>`](/docs/api-reference/types#offsetpaginatedresult)`>`.
 
 ```ts
-const result = await paginateOffset({
+const result = await paginateDrizzleOffset({
   query: () => db.select().from(users).orderBy(asc(users.id)),
   countQuery: db.$count(users),
   offset: 40,
@@ -52,7 +52,7 @@ const result = await paginateOffset({
 
 It asks Drizzle to skip 40 matching records and return up to 20. If the count is 95, the output metadata is `{ total: 95, limit: 20, offset: 40, hasNextPage: true, hasPreviousPage: true }`.
 
-## `paginateCursor(options)`
+## `paginateDrizzleCursor(options)`
 
 Runs forward-only, **count-free keyset pagination** using Drizzle columns and generated SQL predicates.
 
@@ -60,7 +60,7 @@ Runs forward-only, **count-free keyset pagination** using Drizzle columns and ge
 - **Output:** `Promise<`[`CursorPaginatedResult<TItem>`](/docs/api-reference/types#cursorpaginatedresult)`>`.
 
 ```ts
-const result = await paginateCursor({
+const result = await paginateDrizzleCursor({
   query: ({ cursorWhere, orderBy }) =>
     db.select({ id: users.id, createdAt: users.createdAt })
       .from(users)
@@ -130,7 +130,7 @@ Checks whether an error came from the Drizzle adapter itself.
 import { isDrizzlePaginationError } from "@evensurface/paginate-drizzle"
 
 try {
-  await paginate({
+  await paginateDrizzle({
     query: () => db.select().from(users).orderBy(asc(users.id)),
     countQuery: db.$count(users),
     page: 1,

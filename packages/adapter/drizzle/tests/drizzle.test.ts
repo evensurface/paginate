@@ -6,7 +6,7 @@ import { drizzle as drizzlePg } from "drizzle-orm/pg-proxy"
 import { integer as sqliteInteger, sqliteTable, text as sqliteText } from "drizzle-orm/sqlite-core"
 import { drizzle as drizzleSqlite } from "drizzle-orm/sqlite-proxy"
 import { describe, expect, expectTypeOf, it, vi } from "vitest"
-import { createDrizzleAdapter, paginate, paginateOffset } from "../src/index"
+import { createDrizzleAdapter, paginateDrizzle, paginateDrizzleOffset } from "../src/index"
 
 interface User {
   id: number
@@ -31,9 +31,9 @@ describe("createDrizzleAdapter", () => {
       "createDrizzleAdapter",
       "createDrizzleCursorAdapter",
       "isDrizzlePaginationError",
-      "paginate",
-      "paginateCursor",
-      "paginateOffset",
+      "paginateDrizzle",
+      "paginateDrizzleCursor",
+      "paginateDrizzleOffset",
     ])
   })
 
@@ -156,7 +156,7 @@ describe("createDrizzleAdapter", () => {
   })
 })
 
-describe("paginate", () => {
+describe("paginateDrizzle", () => {
   it("returns items and pagination metadata", async () => {
     const users = Array.from({ length: 25 }, (_, index) => ({
       id: index + 1,
@@ -164,7 +164,7 @@ describe("paginate", () => {
     }))
     const { query } = createSelectQuery(users)
 
-    const result = await paginate({
+    const result = await paginateDrizzle({
       query: () => query,
       countQuery: Promise.resolve(users.length),
       page: 3,
@@ -184,7 +184,7 @@ describe("paginate", () => {
   it("does not execute the select query for an empty result", async () => {
     const { query, limit, offset } = createSelectQuery<User>([])
 
-    const result = await paginate({
+    const result = await paginateDrizzle({
       query: () => query,
       countQuery: Promise.resolve([{ total: 0 }]),
       page: 4,
@@ -202,7 +202,7 @@ describe("paginate", () => {
     const createQuery = vi.fn(() => createSelectQuery<User>([]).query)
 
     await expect(
-      paginate({
+      paginateDrizzle({
         query: createQuery,
         countQuery: { then },
         pageSizeOptions: { minLimit: 20, maxLimit: 10 },
@@ -219,7 +219,7 @@ describe("paginate", () => {
     }))
     const { query, limit, offset } = createSelectQuery(users)
 
-    const result = await paginate({
+    const result = await paginateDrizzle({
       query: () => query,
       countQuery: Promise.resolve(users.length),
       page: 99,
@@ -246,8 +246,8 @@ describe("paginate", () => {
     })
     const countQuery = Promise.resolve(users.length)
 
-    const first = await paginate({ query: createQuery, countQuery, page: 1, limit: 2 })
-    const second = await paginate({ query: createQuery, countQuery, page: 2, limit: 2 })
+    const first = await paginateDrizzle({ query: createQuery, countQuery, page: 1, limit: 2 })
+    const second = await paginateDrizzle({ query: createQuery, countQuery, page: 2, limit: 2 })
 
     expect(first.items).toEqual(users.slice(0, 2))
     expect(second.items).toEqual(users.slice(2, 4))
@@ -270,8 +270,8 @@ describe("paginate", () => {
     const countQuery = Promise.resolve(users.length)
 
     const [first, second] = await Promise.all([
-      paginate({ query: createQuery, countQuery, page: 1, limit: 2 }),
-      paginate({ query: createQuery, countQuery, page: 2, limit: 2 }),
+      paginateDrizzle({ query: createQuery, countQuery, page: 1, limit: 2 }),
+      paginateDrizzle({ query: createQuery, countQuery, page: 2, limit: 2 }),
     ])
 
     expect(first.items).toEqual(users.slice(0, 2))
@@ -286,8 +286,8 @@ describe("paginate", () => {
     const createQuery = () => query
     const countQuery = Promise.resolve(1)
 
-    await paginate({ query: createQuery, countQuery })
-    const result = paginate({ query: createQuery, countQuery })
+    await paginateDrizzle({ query: createQuery, countQuery })
+    const result = paginateDrizzle({ query: createQuery, countQuery })
     await expect(result).rejects.toBeInstanceOf(TypeError)
     const error = await result.catch((caught: unknown) => caught)
     expect((error as Error).constructor).toBe(TypeError)
@@ -308,8 +308,8 @@ describe("paginate", () => {
     const createQuery = () => query
     const countQuery = Promise.resolve(1)
 
-    await expect(paginate({ query: createQuery, countQuery })).rejects.toBe(limitError)
-    const error = await paginate({ query: createQuery, countQuery }).catch(
+    await expect(paginateDrizzle({ query: createQuery, countQuery })).rejects.toBe(limitError)
+    const error = await paginateDrizzle({ query: createQuery, countQuery }).catch(
       (caught: unknown) => caught,
     )
     expect((error as Error).constructor).toBe(TypeError)
@@ -331,7 +331,7 @@ describe("paginate", () => {
       return { rows: sql.includes("count(") ? [[3]] : [[3, "Linus"]] }
     })
 
-    const result = await paginate({
+    const result = await paginateDrizzle({
       query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
       countQuery: db.select({ total: count() }).from(users),
       page: 2,
@@ -355,7 +355,7 @@ describe("paginate", () => {
       return { rows: sql.includes("count(") ? [[3]] : [[3, "Linus"]] }
     })
 
-    const result = await paginate({
+    const result = await paginateDrizzle({
       query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
       countQuery: db.select({ total: count() }).from(users),
       page: 2,
@@ -379,7 +379,7 @@ describe("paginate", () => {
       return { rows: sql.includes("count(") ? [[3]] : [[3, "Linus"]] }
     })
 
-    const result = await paginate({
+    const result = await paginateDrizzle({
       query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
       countQuery: db.select({ total: count() }).from(users),
       page: 2,
@@ -399,7 +399,7 @@ describe("paginate", () => {
         name: text().notNull(),
       })
       const db = drizzlePg(async () => ({ rows: [] }))
-      const result = paginate({
+      const result = paginateDrizzle({
         query: () => db.select().from(users).orderBy(users.id),
         countQuery: Promise.resolve(1),
       })
@@ -421,7 +421,7 @@ describe("paginate", () => {
       const db = drizzlePg(async () => ({ rows: [] }))
       const where = eq(users.active, true)
 
-      const result = paginate({
+      const result = paginateDrizzle({
         query: () => {
           let query = db.select({ id: users.id, name: users.name }).from(users).$dynamic()
           query = query.where(where).orderBy(desc(users.name), users.id)
@@ -449,7 +449,7 @@ describe("paginate", () => {
       })
       const db = drizzlePg(async () => ({ rows: [] }))
 
-      return paginate({
+      return paginateDrizzle({
         query: () =>
           db
             .select({ userId: users.id, teamName: teams.name })
@@ -472,7 +472,7 @@ describe("paginate", () => {
       })
       const db = drizzleMysql(async () => ({ rows: [] }))
 
-      return paginate({
+      return paginateDrizzle({
         query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
         countQuery: db.$count(users),
       })
@@ -490,7 +490,7 @@ describe("paginate", () => {
       })
       const db = drizzleSqlite(async () => ({ rows: [] }))
 
-      return paginate({
+      return paginateDrizzle({
         query: () => {
           let query = db.select({ id: users.id, name: users.name }).from(users).$dynamic()
           query = query.orderBy(users.id)
@@ -505,7 +505,7 @@ describe("paginate", () => {
   })
 })
 
-describe("paginateOffset", () => {
+describe("paginateDrizzleOffset", () => {
   it("returns items and native offset metadata", async () => {
     const users = Array.from({ length: 25 }, (_, index) => ({
       id: index + 1,
@@ -513,7 +513,7 @@ describe("paginateOffset", () => {
     }))
     const { query, limit, offset } = createSelectQuery(users)
 
-    const result = await paginateOffset({
+    const result = await paginateDrizzleOffset({
       query: () => query,
       countQuery: Promise.resolve(users.length),
       offset: 7,
@@ -535,7 +535,7 @@ describe("paginateOffset", () => {
   it("does not create a select query for an out-of-range offset", async () => {
     const createQuery = vi.fn(() => createSelectQuery<User>([]).query)
 
-    const result = await paginateOffset({
+    const result = await paginateDrizzleOffset({
       query: createQuery,
       countQuery: Promise.resolve(5),
       offset: 5,
@@ -549,7 +549,7 @@ describe("paginateOffset", () => {
 
   it("forwards custom page-size configuration", async () => {
     const { query } = createSelectQuery(Array.from({ length: 50 }, (_, id) => ({ id })))
-    const result = await paginateOffset({
+    const result = await paginateDrizzleOffset({
       query: () => query,
       countQuery: Promise.resolve(50),
       limit: 100,
@@ -564,8 +564,8 @@ describe("paginateOffset", () => {
     const createQuery = () => query
     const countQuery = Promise.resolve(1)
 
-    await paginateOffset({ query: createQuery, countQuery })
-    await expect(paginateOffset({ query: createQuery, countQuery })).rejects.toMatchObject({
+    await paginateDrizzleOffset({ query: createQuery, countQuery })
+    await expect(paginateDrizzleOffset({ query: createQuery, countQuery })).rejects.toMatchObject({
       code: "DRIZZLE_QUERY_REUSED",
     })
     expect(limit).toHaveBeenCalledOnce()
@@ -582,7 +582,7 @@ describe("paginateOffset", () => {
       return { rows: sql.includes("count(") ? [[10]] : [[8, "Linus"]] }
     })
 
-    const result = await paginateOffset({
+    const result = await paginateDrizzleOffset({
       query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
       countQuery: db.select({ total: count() }).from(users),
       offset: 7,
@@ -605,7 +605,7 @@ describe("paginateOffset", () => {
       return { rows: sql.includes("count(") ? [[10]] : [[8, "Linus"]] }
     })
 
-    await paginateOffset({
+    await paginateDrizzleOffset({
       query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
       countQuery: db.select({ total: count() }).from(users),
       offset: 7,
@@ -627,7 +627,7 @@ describe("paginateOffset", () => {
       return { rows: sql.includes("count(") ? [[10]] : [[8, "Linus"]] }
     })
 
-    await paginateOffset({
+    await paginateDrizzleOffset({
       query: () => db.select({ id: users.id, name: users.name }).from(users).orderBy(users.id),
       countQuery: db.select({ total: count() }).from(users),
       offset: 7,
@@ -644,7 +644,7 @@ describe("paginateOffset", () => {
       name: text().notNull(),
     })
     const db = drizzlePg(async () => ({ rows: [] }))
-    const result = paginateOffset({
+    const result = paginateDrizzleOffset({
       query: () => db.select().from(users).orderBy(users.id),
       countQuery: Promise.resolve(1),
     })

@@ -21,11 +21,11 @@ Then use your existing Drizzle `db` and `users` table:
 
 ```ts
 import { asc } from "drizzle-orm"
-import { paginate } from "@evensurface/paginate-drizzle"
+import { paginateDrizzle } from "@evensurface/paginate-drizzle"
 import { db } from "./db"
 import { users } from "./schema"
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () => db.select().from(users).orderBy(asc(users.id)),
   countQuery: db.$count(users),
   page: 2,
@@ -46,9 +46,9 @@ pnpm add @evensurface/paginate-better-auth better-auth
 ```
 
 ```ts
-import { paginate } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuth } from "@evensurface/paginate-better-auth"
 
-const result = await paginate<{ id: string }>({
+const result = await paginateBetterAuth<{ id: string }>({
   adapter: ctx.context.adapter,
   model: "user",
   select: ["id"],

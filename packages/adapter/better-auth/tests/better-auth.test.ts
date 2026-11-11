@@ -7,8 +7,8 @@ import {
   type BetterAuthSelect,
   type BetterAuthSortBy,
   type BetterAuthWhere,
-  paginate,
-  paginateOffset,
+  paginateBetterAuth,
+  paginateBetterAuthOffset,
 } from "../src/index"
 
 interface Follow {
@@ -35,7 +35,7 @@ const where = [{ field: "followerId", value: "user-1" }] satisfies BetterAuthWhe
 describe("Better Auth pagination", () => {
   it("exposes only the wrapper runtime API", async () => {
     const api = await import("../src/index")
-    expect(Object.keys(api).sort()).toEqual(["paginate", "paginateOffset"])
+    expect(Object.keys(api).sort()).toEqual(["paginateBetterAuth", "paginateBetterAuthOffset"])
   })
 
   it("counts before fetching and forwards one query descriptor", async () => {
@@ -58,7 +58,7 @@ describe("Better Auth pagination", () => {
       }))
     })
 
-    const result = await paginate<Follow>({
+    const result = await paginateBetterAuth<Follow>({
       adapter,
       model: "follow",
       where,
@@ -85,7 +85,7 @@ describe("Better Auth pagination", () => {
     const select = ["id"]
     const join = { profile: { limit: 1 } }
 
-    await paginate<Follow>({
+    await paginateBetterAuth<Follow>({
       adapter,
       model: "follow",
       where,
@@ -116,7 +116,7 @@ describe("Better Auth pagination", () => {
       return [{ id: "1", followerId: "user-1" }]
     })
 
-    await paginateOffset<Follow>({
+    await paginateBetterAuthOffset<Follow>({
       adapter,
       model: "follow",
       select: ["id"],
@@ -136,7 +136,7 @@ describe("Better Auth pagination", () => {
   it("omits optional findMany options instead of inventing an order", async () => {
     const { adapter, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
 
-    await paginate({ adapter, model: "follow" })
+    await paginateBetterAuth({ adapter, model: "follow" })
 
     expect(findMany).toHaveBeenCalledWith({
       model: "follow",
@@ -154,7 +154,7 @@ describe("Better Auth pagination", () => {
     const select: string[] = []
     const join = { profile: false }
 
-    await paginate({ adapter, model: "follow", select, join })
+    await paginateBetterAuth({ adapter, model: "follow", select, join })
 
     expect(findMany).toHaveBeenCalledWith({
       model: "follow",
@@ -170,7 +170,7 @@ describe("Better Auth pagination", () => {
     const { adapter, count, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
 
     await expect(
-      paginate({
+      paginateBetterAuth({
         adapter,
         model: "follow",
         select: ["followerId"],
@@ -179,7 +179,7 @@ describe("Better Auth pagination", () => {
     ).rejects.toThrow('select must include "id" when join is enabled')
 
     await expect(
-      paginateOffset({
+      paginateBetterAuthOffset({
         adapter,
         model: "follow",
         select: ["followerId"],
@@ -197,7 +197,7 @@ describe("Better Auth pagination", () => {
       const { adapter, count, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
 
       await expect(
-        paginate({
+        paginateBetterAuth({
           adapter,
           model: "follow",
           join: { profile: { limit: joinLimit } },
@@ -212,7 +212,7 @@ describe("Better Auth pagination", () => {
     const { adapter, count, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
 
     await expect(
-      paginate({
+      paginateBetterAuth({
         adapter,
         model: "follow",
         join: { profile: { limit: 0 } },
@@ -230,7 +230,7 @@ describe("Better Auth pagination", () => {
       followerId: "user-1",
     }))
     const { adapter } = createAdapter(items)
-    const result = await paginateOffset<Follow>({
+    const result = await paginateBetterAuthOffset<Follow>({
       adapter,
       model: "follow",
       where,
@@ -257,7 +257,7 @@ describe("Better Auth pagination", () => {
     }))
     const { adapter } = createAdapter(items)
 
-    const page = await paginate<Follow>({
+    const page = await paginateBetterAuth<Follow>({
       adapter,
       model: "follow",
       sortBy,
@@ -266,7 +266,7 @@ describe("Better Auth pagination", () => {
     })
     expect(page.pagination).toMatchObject({ page: 1, limit: 20, offset: 0 })
 
-    const offset = await paginateOffset<Follow>({
+    const offset = await paginateBetterAuthOffset<Follow>({
       adapter,
       model: "follow",
       sortBy,
@@ -277,7 +277,7 @@ describe("Better Auth pagination", () => {
 
   it("skips fetching empty and out-of-range results", async () => {
     const { adapter: emptyAdapter, findMany: emptyFindMany } = createAdapter([])
-    const empty = await paginate({
+    const empty = await paginateBetterAuth({
       adapter: emptyAdapter,
       model: "follow",
       sortBy,
@@ -290,7 +290,7 @@ describe("Better Auth pagination", () => {
     const { adapter: offsetAdapter, findMany: offsetFindMany } = createAdapter([
       { id: "1", followerId: "user-1" },
     ])
-    const beyond = await paginateOffset({
+    const beyond = await paginateBetterAuthOffset({
       adapter: offsetAdapter,
       model: "follow",
       sortBy,
@@ -306,7 +306,7 @@ describe("Better Auth pagination", () => {
       followerId: "user-1",
     }))
     const { adapter } = createAdapter(items)
-    const result = await paginate<Follow>({
+    const result = await paginateBetterAuth<Follow>({
       adapter,
       model: "follow",
       sortBy,
@@ -323,29 +323,29 @@ describe("Better Auth pagination", () => {
     const { adapter: countAdapter, count } = createAdapter([])
     count.mockRejectedValue(countError)
 
-    await expect(paginate({ adapter: countAdapter, model: "follow", sortBy })).rejects.toBe(
-      countError,
-    )
+    await expect(
+      paginateBetterAuth({ adapter: countAdapter, model: "follow", sortBy }),
+    ).rejects.toBe(countError)
 
     const fetchError = new Error("fetch failed")
     const { adapter: fetchAdapter, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
     findMany.mockRejectedValue(fetchError)
 
-    await expect(paginate({ adapter: fetchAdapter, model: "follow", sortBy })).rejects.toBe(
-      fetchError,
-    )
+    await expect(
+      paginateBetterAuth({ adapter: fetchAdapter, model: "follow", sortBy }),
+    ).rejects.toBe(fetchError)
   })
 
   it("retains core validation and error classification", async () => {
     const { adapter: invalidCount, count: countInvalid } = createAdapter([])
     countInvalid.mockResolvedValue(-1)
-    const result = paginate({ adapter: invalidCount, model: "follow", sortBy })
+    const result = paginateBetterAuth({ adapter: invalidCount, model: "follow", sortBy })
     await expect(result).rejects.toMatchObject({ code: "INVALID_TOTAL" })
     await expect(result.catch((error: unknown) => isPaginationError(error))).resolves.toBe(true)
 
     const { adapter: invalidOptions, count: countInvalidOptions } = createAdapter([])
     await expect(
-      paginate({
+      paginateBetterAuth({
         adapter: invalidOptions,
         model: "follow",
         sortBy,
@@ -362,8 +362,8 @@ describe("Better Auth pagination", () => {
     }))
     const { adapter } = createAdapter(items)
     const [first, second] = await Promise.all([
-      paginate<Follow>({ adapter, model: "follow", sortBy, page: 1, limit: 2 }),
-      paginate<Follow>({ adapter, model: "follow", sortBy, page: 2, limit: 2 }),
+      paginateBetterAuth<Follow>({ adapter, model: "follow", sortBy, page: 1, limit: 2 }),
+      paginateBetterAuth<Follow>({ adapter, model: "follow", sortBy, page: 2, limit: 2 }),
     ])
 
     expect(first.items).toEqual(items.slice(0, 2))
@@ -385,12 +385,15 @@ describe("Better Auth pagination", () => {
     >()
     expectTypeOf<BetterAuthWhere>().toMatchTypeOf<{ field: string }>()
 
-    const defaultResult = paginate({ adapter: createAdapter([]).adapter, model: "follow" })
+    const defaultResult = paginateBetterAuth({
+      adapter: createAdapter([]).adapter,
+      model: "follow",
+    })
     expectTypeOf<Awaited<typeof defaultResult>["items"]>().toEqualTypeOf<
       Record<string, unknown>[]
     >()
 
-    const selectedResult = paginate<Pick<Follow, "id">>({
+    const selectedResult = paginateBetterAuth<Pick<Follow, "id">>({
       adapter: createAdapter([]).adapter,
       model: "follow",
       select: ["id"],
@@ -398,7 +401,7 @@ describe("Better Auth pagination", () => {
     expectTypeOf<Awaited<typeof selectedResult>["items"]>().toEqualTypeOf<Pick<Follow, "id">[]>()
 
     // Better Auth's caller-selected generic cannot be correlated with its string-based select.
-    const callerAssertedResult = paginate<Follow>({
+    const callerAssertedResult = paginateBetterAuth<Follow>({
       adapter: createAdapter([]).adapter,
       model: "follow",
       select: ["id"],

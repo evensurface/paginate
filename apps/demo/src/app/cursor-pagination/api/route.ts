@@ -1,11 +1,11 @@
-import { paginateCursor } from "@evensurface/paginate-drizzle"
+import { paginateDrizzleCursor } from "@evensurface/paginate-drizzle"
 import { db } from "@/db"
 import { products } from "@/db/schema"
 
 export async function GET(request: Request) {
   const cursor = new URL(request.url).searchParams.get("cursor") ?? undefined
 
-  const page = await paginateCursor({
+  const page = await paginateDrizzleCursor({
     query: ({ cursorWhere, orderBy }) =>
       db
         .select()

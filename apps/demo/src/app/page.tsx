@@ -1,4 +1,4 @@
-import { paginate } from "@evensurface/paginate-drizzle"
+import { paginateDrizzle } from "@evensurface/paginate-drizzle"
 import { asc, gt } from "drizzle-orm"
 import Link from "next/link"
 import { db } from "@/db"
@@ -13,7 +13,7 @@ export default async function Home({
 
   const filter = gt(products.priceInCents, 10000)
 
-  const { items, pagination: paginationMetadata } = await paginate({
+  const { items, pagination: paginationMetadata } = await paginateDrizzle({
     query: () => db.select().from(products).where(filter).orderBy(asc(products.id)),
     countQuery: db.$count(products, filter),
     page,

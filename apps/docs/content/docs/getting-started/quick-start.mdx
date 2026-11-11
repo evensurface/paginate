@@ -35,11 +35,11 @@ The packages have different jobs:
 
 ```ts
 import { asc } from "drizzle-orm"
-import { paginate } from "@evensurface/paginate-drizzle"
+import { paginateDrizzle } from "@evensurface/paginate-drizzle"
 import { db } from "./db"         // Your existing Drizzle database
 import { users } from "./schema" // Your existing users table
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () =>
     db
       .select({ id: users.id, name: users.name })
@@ -51,7 +51,7 @@ const result = await paginate({
 })
 ```
 
-That's the whole pagination call. **There is no `adapter` field.** The `paginate()` function imported from `@evensurface/paginate-drizzle` already knows how to work with Drizzle.
+That's the whole pagination call. **There is no `adapter` field.** The `paginateDrizzle()` function imported from `@evensurface/paginate-drizzle` already knows how to work with Drizzle.
 
 ### What you're passing in
 
@@ -121,7 +121,7 @@ A real API might receive `/users?page=2&limit=2`. Those URL values are **strings
 async function handleRequest(request: Request): Promise<Response> {
   const url = new URL(request.url)
 
-  const result = await paginate({
+  const result = await paginateDrizzle({
     query: () =>
       db
         .select({ id: users.id, name: users.name })
@@ -156,7 +156,7 @@ import { eq } from "drizzle-orm"
 
 const where = eq(users.active, true)
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () =>
     db
       .select({ id: users.id, name: users.name })
@@ -175,7 +175,7 @@ const result = await paginate({
 
 You may see an **adapter** mentioned in the [core API](/docs/api-reference) or the [other pagination guides](/docs/guides/page-pagination). It's simply the bit of code that translates Paginate's instructions into data queries.
 
-**With Drizzle, that adapter is already built for you.** You call `paginate()` from `@evensurface/paginate-drizzle` and pass Drizzle queries, as shown above. You do **not** create an adapter object.
+**With Drizzle, that adapter is already built for you.** You call `paginateDrizzle()` from `@evensurface/paginate-drizzle` and pass Drizzle queries, as shown above. You do **not** create an adapter object.
 
 **If you use Better Auth**, its [ready-made adapter](/docs/adapters/better-auth) also avoids custom `count()` and `fetch()` implementations. For other ORMs, HTTP APIs, or arrays, the framework-independent `@evensurface/paginate` package lets you write a small adapter. That is an **advanced integration choice**, not a step everyone must complete. Read [Adapters explained](/docs/adapters) when you actually need it.
 

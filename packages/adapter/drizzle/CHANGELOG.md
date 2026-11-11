@@ -1,5 +1,20 @@
 # @evensurface/paginate-drizzle
 
+## 3.0.0
+
+### Major Changes
+
+- Rename adapter pagination functions to adapter-specific public names.
+
+### Patch Changes
+
+- @evensurface/paginate@3.0.0
+
+## Unreleased
+
+- **Breaking:** renamed `paginate`, `paginateOffset`, and `paginateCursor` to
+  `paginateDrizzle`, `paginateDrizzleOffset`, and `paginateDrizzleCursor`.
+
 ## 2.1.1
 
 ### Patch Changes

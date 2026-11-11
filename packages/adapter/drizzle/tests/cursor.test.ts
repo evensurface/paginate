@@ -10,7 +10,7 @@ import {
   createDrizzleCursorAdapter,
   type DrizzleCursorOrder,
   isDrizzlePaginationError,
-  paginateCursor,
+  paginateDrizzleCursor,
 } from "../src/index"
 
 type User = { id: number; name: string }
@@ -22,7 +22,7 @@ const fakeOrder = {
   getValue: (item: User) => item.id,
 }
 
-describe("paginateCursor", () => {
+describe("paginateDrizzleCursor", () => {
   it("returns count-free lookahead metadata and inferred items", async () => {
     const limit = vi.fn((value: number) =>
       Promise.resolve(
@@ -33,7 +33,7 @@ describe("paginateCursor", () => {
         ].slice(0, value),
       ),
     )
-    const result = await paginateCursor({
+    const result = await paginateDrizzleCursor({
       query: () => ({ limit }),
       orderBy: [fakeOrder],
       limit: 2,
@@ -59,7 +59,7 @@ describe("paginateCursor", () => {
       return { rows: [] }
     })
 
-    await paginateCursor({
+    await paginateDrizzleCursor({
       query: ({ cursorWhere, orderBy }) =>
         db
           .select({ id: users.id, name: users.name })
@@ -105,7 +105,7 @@ describe("paginateCursor", () => {
       return { rows: [] }
     })
 
-    await paginateCursor({
+    await paginateDrizzleCursor({
       query: ({ cursorWhere, orderBy }) =>
         db
           .select()
@@ -132,7 +132,7 @@ describe("paginateCursor", () => {
       return { rows: [] }
     })
 
-    await paginateCursor({
+    await paginateDrizzleCursor({
       query: ({ cursorWhere, orderBy }) =>
         db
           .select()
@@ -154,7 +154,7 @@ describe("paginateCursor", () => {
       name: text().notNull(),
     })
     const db = drizzlePg(async () => ({ rows: [] }))
-    const result = paginateCursor({
+    const result = paginateDrizzleCursor({
       query: ({ cursorWhere, orderBy }) =>
         db
           .select({ userId: users.id, userName: users.name })
@@ -177,7 +177,7 @@ describe("paginateCursor", () => {
 
     const typecheckOnly = () => false
     if (typecheckOnly()) {
-      paginateCursor({
+      paginateDrizzleCursor({
         query: () => ({ limit: () => Promise.resolve<User[]>([]) }),
         orderBy: [
           // @ts-expect-error An integer column cannot be paired with a string getter.
@@ -195,7 +195,7 @@ describe("paginateCursor", () => {
     const query = vi.fn(() => ({ limit: () => Promise.resolve([]) }))
 
     await expect(
-      paginateCursor({
+      paginateDrizzleCursor({
         query,
         orderBy: [
           {
@@ -218,7 +218,7 @@ describe("paginateCursor", () => {
     })
 
     await expect(
-      paginateCursor({
+      paginateDrizzleCursor({
         query: () => ({ limit: () => Promise.resolve<User[]>([]) }),
         orderBy: [
           { key: "name", column: users.name, direction: "asc", getValue: (item) => item.name },
@@ -229,7 +229,7 @@ describe("paginateCursor", () => {
   })
 
   it("rejects a cursor value whose type does not match the configured column", async () => {
-    const stringCursorResult = await paginateCursor({
+    const stringCursorResult = await paginateDrizzleCursor({
       query: () => ({ limit: () => Promise.resolve([{ id: "1" }, { id: "2" }]) }),
       orderBy: [
         {
@@ -244,7 +244,7 @@ describe("paginateCursor", () => {
     const users = pgTable("cursor_type_mismatch_users", { id: integer().notNull() })
 
     await expect(
-      paginateCursor({
+      paginateDrizzleCursor({
         query: () => ({ limit: () => Promise.resolve<{ id: number }[]>([]) }),
         orderBy: [{ key: "id", column: users.id, direction: "asc", getValue: (item) => item.id }],
         cursor: stringCursorResult.pagination.nextCursor ?? undefined,
@@ -259,7 +259,7 @@ describe("paginateCursor", () => {
     const users = pgTable("cursor_custom_users", {
       token: customText().notNull(),
     })
-    const result = await paginateCursor({
+    const result = await paginateDrizzleCursor({
       query: () => ({
         limit: () => Promise.resolve([{ token: "alpha" }, { token: "beta" }]),
       }),
@@ -308,7 +308,7 @@ async function createCursor(): Promise<string> {
     },
     fakeOrder,
   ]
-  const result = await paginateCursor({
+  const result = await paginateDrizzleCursor({
     query: () => ({
       limit: () =>
         Promise.resolve([
@@ -325,7 +325,7 @@ async function createCursor(): Promise<string> {
 }
 
 async function createSingleCursor(direction: "asc" | "desc" = "asc"): Promise<string> {
-  const result = await paginateCursor({
+  const result = await paginateDrizzleCursor({
     query: () => ({
       limit: () =>
         Promise.resolve([

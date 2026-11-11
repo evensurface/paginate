@@ -49,7 +49,7 @@ type BetterAuthWhere =
   NonNullable<BetterAuthFindManyOptions["where"]>[number]
 ```
 
-The alias represents **one** Better Auth filter entry. To pass filters to `paginate()`, use the **array** accepted by `where`:
+The alias represents **one** Better Auth filter entry. To pass filters to `paginateBetterAuth()`, use the **array** accepted by `where`:
 
 ```ts
 const where: BetterAuthWhere[] = [
@@ -140,7 +140,7 @@ interface Follow {
   followerId: string
 }
 
-const result = await paginate<Follow>({
+const result = await paginateBetterAuth<Follow>({
   adapter: ctx.context.adapter,
   model: "follow",
   sortBy: { field: "id", direction: "asc" },
@@ -152,7 +152,7 @@ const result = await paginate<Follow>({
 If you omit the generic, the result items have type **`Record<string, unknown>[]`**. Passing `<Follow>` does not prove the selected model or fields match that shape: Better Auth's string-based `model`, `select`, and `join` inputs do not support this inference. Specify a narrower type when selecting fewer columns.
 
 ```ts
-const selected = await paginate<Pick<Follow, "id">>({
+const selected = await paginateBetterAuth<Pick<Follow, "id">>({
   adapter: ctx.context.adapter,
   model: "follow",
   select: ["id"],

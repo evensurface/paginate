@@ -60,9 +60,9 @@ const packages = [
       "createDrizzleAdapter",
       "createDrizzleCursorAdapter",
       "isDrizzlePaginationError",
-      "paginate",
-      "paginateCursor",
-      "paginateOffset",
+      "paginateDrizzle",
+      "paginateDrizzleCursor",
+      "paginateDrizzleOffset",
     ],
     expectedTypeExports: [
       "DrizzleOffsetPaginationOptions",
@@ -80,7 +80,7 @@ const packages = [
   },
   {
     directory: "packages/adapter/better-auth",
-    expectedExports: ["paginate", "paginateOffset"],
+    expectedExports: ["paginateBetterAuth", "paginateBetterAuthOffset"],
     expectedTypeExports: [
       "BetterAuthDatabaseAdapter",
       "BetterAuthFindManyOptions",

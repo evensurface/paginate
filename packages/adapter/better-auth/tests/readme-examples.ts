@@ -1,5 +1,5 @@
 import type { AuthContext } from "better-auth"
-import { paginate, paginateOffset } from "../src/index"
+import { paginateBetterAuth, paginateBetterAuthOffset } from "../src/index"
 
 interface Follow {
   id: string
@@ -28,7 +28,7 @@ export async function compileReadmeExamples(
   const where = [{ field: "followerId", value: userId }]
   const sortBy = { field: "id", direction: "asc" } as const
 
-  const pageResult = await paginate<Follow>({
+  const pageResult = await paginateBetterAuth<Follow>({
     adapter,
     model: "follow",
     where,
@@ -36,7 +36,7 @@ export async function compileReadmeExamples(
     page,
     limit,
   })
-  const offsetResult = await paginateOffset<Follow>({
+  const offsetResult = await paginateBetterAuthOffset<Follow>({
     adapter,
     model: "follow",
     where,
@@ -45,14 +45,14 @@ export async function compileReadmeExamples(
     limit,
   })
 
-  const selectedResult = await paginate<Pick<Follow, "id">>({
+  const selectedResult = await paginateBetterAuth<Pick<Follow, "id">>({
     adapter,
     model: "follow",
     select: ["id"],
     sortBy,
   })
 
-  const joinedResult = await paginate<SelectedProject>({
+  const joinedResult = await paginateBetterAuth<SelectedProject>({
     adapter,
     model: "project",
     select: ["id", "name"],
@@ -60,7 +60,7 @@ export async function compileReadmeExamples(
     sortBy,
   })
 
-  const unsortedResult = await paginateOffset<Follow>({
+  const unsortedResult = await paginateBetterAuthOffset<Follow>({
     adapter,
     model: "follow",
     offset,

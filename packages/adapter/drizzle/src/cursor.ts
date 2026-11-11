@@ -128,7 +128,7 @@ export function createDrizzleCursorAdapter<TItem>(
 }
 
 /** Paginates a Drizzle query with forward-only, count-free keyset pagination. */
-export function paginateCursor<TItem>({
+export function paginateDrizzleCursor<TItem>({
   query,
   orderBy,
   cursor,

@@ -3,7 +3,7 @@ title: Drizzle ORM Adapter
 description: Use numbered pages, native offsets, and true keyset cursors with Drizzle ORM.
 ---
 
-If your app already uses Drizzle ORM, you don't have to implement `count()` or `fetch()` yourself—or pass an `adapter` option into `paginate()`. The official package, **`@evensurface/paginate-drizzle`**, connects Drizzle's query builders to the pagination core.
+If your app already uses Drizzle ORM, you don't have to implement `count()` or `fetch()` yourself—or pass an `adapter` option into `paginateDrizzle()`. The official package, **`@evensurface/paginate-drizzle`**, connects Drizzle's query builders to the pagination core.
 
 It supports PostgreSQL, MySQL, and SQLite query builders, including partial selects and joins. The examples below use PostgreSQL syntax; the pagination ideas are the same in other dialects.
 
@@ -37,13 +37,13 @@ Use this when you need numbered pages and a total count. This is the same API fr
 
 ```ts
 import { asc, desc, eq } from "drizzle-orm"
-import { paginate } from "@evensurface/paginate-drizzle"
+import { paginateDrizzle } from "@evensurface/paginate-drizzle"
 import { db } from "./db"
 import { users } from "./schema"
 
 const where = eq(users.active, true)
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () =>
     db
       .select({
@@ -116,12 +116,12 @@ The result must be **exactly one row** containing a non-negative safe-integer `t
 
 ## Offset pagination
 
-Use [`paginateOffset()`](/docs/api-reference/drizzle#paginateoffsetoptions) when the client supplies an arbitrary zero-based offset:
+Use [`paginateDrizzleOffset()`](/docs/api-reference/drizzle#paginatedrizzleoffsetoptions) when the client supplies an arbitrary zero-based offset:
 
 ```ts
-import { paginateOffset } from "@evensurface/paginate-drizzle"
+import { paginateDrizzleOffset } from "@evensurface/paginate-drizzle"
 
-const offsetResult = await paginateOffset({
+const offsetResult = await paginateDrizzleOffset({
   query: () =>
     db.select().from(users).where(where).orderBy(asc(users.id)),
   countQuery: db.$count(users, where),
@@ -136,13 +136,13 @@ The full input type is [`DrizzleOffsetPaginationOptions<TItem>`](/docs/api-refer
 
 ## Cursor pagination
 
-Use [`paginateCursor()`](/docs/api-reference/drizzle#paginatecursoroptions) for forward-only feeds. It runs a real keyset query, **without `countQuery` or a numeric offset**.
+Use [`paginateDrizzleCursor()`](/docs/api-reference/drizzle#paginatedrizzlecursoroptions) for forward-only feeds. It runs a real keyset query, **without `countQuery` or a numeric offset**.
 
 ```ts
 import { and, eq } from "drizzle-orm"
-import { paginateCursor } from "@evensurface/paginate-drizzle"
+import { paginateDrizzleCursor } from "@evensurface/paginate-drizzle"
 
-const cursorResult = await paginateCursor({
+const cursorResult = await paginateDrizzleCursor({
   query: ({ cursorWhere, orderBy }) =>
     db
       .select({

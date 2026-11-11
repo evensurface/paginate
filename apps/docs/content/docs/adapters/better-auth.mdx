@@ -26,7 +26,7 @@ The examples below assume you are inside a **server-side Better Auth plugin endp
 ## 2. Paginate by page number
 
 ```ts
-import { paginate } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuth } from "@evensurface/paginate-better-auth"
 
 interface Follow {
   id: string
@@ -35,7 +35,7 @@ interface Follow {
   createdAt: Date
 }
 
-const result = await paginate<Follow>({
+const result = await paginateBetterAuth<Follow>({
   adapter: ctx.context.adapter,
   model: "follow",
   where: [{ field: "followerId", value: session.user.id }],
@@ -71,7 +71,7 @@ With three matching follows, the result has the following shape:
 `page` and `limit` accept a number or numeric string, so your endpoint can forward parsed query values:
 
 ```ts
-const result = await paginate<Follow>({
+const result = await paginateBetterAuth<Follow>({
   adapter: ctx.context.adapter,
   model: "follow",
   where: [{ field: "followerId", value: session.user.id }],
@@ -85,12 +85,12 @@ This assumes your endpoint defines `page` and `limit` in its query schema. Missi
 
 ## 3. Paginate from an offset
 
-Use `paginateOffset()` if the client sends a number of rows to skip, rather than a page number:
+Use `paginateBetterAuthOffset()` if the client sends a number of rows to skip, rather than a page number:
 
 ```ts
-import { paginateOffset } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuthOffset } from "@evensurface/paginate-better-auth"
 
-const result = await paginateOffset<Follow>({
+const result = await paginateBetterAuthOffset<Follow>({
   adapter: ctx.context.adapter,
   model: "follow",
   where: [{ field: "followerId", value: session.user.id }],
@@ -132,7 +132,7 @@ These options come from Better Auth's public `findMany()` contract:
 For example, to return only IDs:
 
 ```ts
-const result = await paginate<{ id: string }>({
+const result = await paginateBetterAuth<{ id: string }>({
   adapter: ctx.context.adapter,
   model: "follow",
   where: [{ field: "followerId", value: session.user.id }],
@@ -162,7 +162,7 @@ interface ProjectWithTasks {
   }>
 }
 
-const result = await paginate<ProjectWithTasks>({
+const result = await paginateBetterAuth<ProjectWithTasks>({
   adapter: ctx.context.adapter,
   model: "project",
   select: ["id", "name"],
@@ -191,7 +191,7 @@ The wrapper copies the `select` array, `join` map, and each object-valued join o
 Better Auth accepts model and field names as strings. It **cannot infer a row type** from `model`, `select`, or `join` at compile time. Supply the result shape explicitly:
 
 ```ts
-const result = await paginate<ProjectWithTasks>({
+const result = await paginateBetterAuth<ProjectWithTasks>({
   adapter: ctx.context.adapter,
   model: "project",
   select: ["id", "name"],

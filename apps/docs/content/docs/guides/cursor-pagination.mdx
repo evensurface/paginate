@@ -23,11 +23,11 @@ You don't need to create or decode Base64 strings yourself. The core handles tha
 For a simple feed ordered by a unique user ID, you can use the built-in Drizzle integration without creating an adapter:
 
 ```ts
-import { paginateCursor } from "@evensurface/paginate-drizzle"
+import { paginateDrizzleCursor } from "@evensurface/paginate-drizzle"
 import { db } from "./db"
 import { users } from "./schema"
 
-const result = await paginateCursor({
+const result = await paginateDrizzleCursor({
   query: ({ cursorWhere, orderBy }) =>
     db
       .select({ id: users.id, name: users.name })

@@ -1,5 +1,20 @@
 # @evensurface/paginate-better-auth
 
+## 1.0.0
+
+### Major Changes
+
+- Rename adapter pagination functions to adapter-specific public names.
+
+### Patch Changes
+
+- @evensurface/paginate@3.0.0
+
+## Unreleased
+
+- **Breaking:** renamed `paginate` and `paginateOffset` to `paginateBetterAuth` and
+  `paginateBetterAuthOffset`.
+
 ## 0.1.0
 
 ### Minor Changes

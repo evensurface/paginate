@@ -7,15 +7,15 @@ Use `paginate()` when people choose numbered pages, like **1, 2, 3, Next, Previo
 
 ## The easiest way: Drizzle ORM
 
-If you use Drizzle, you can call `paginate()` directly. **No custom adapter needed.**
+If you use Drizzle, you can call `paginateDrizzle()` directly. **No custom adapter needed.**
 
 ```ts
 import { asc } from "drizzle-orm"
-import { paginate } from "@evensurface/paginate-drizzle"
+import { paginateDrizzle } from "@evensurface/paginate-drizzle"
 import { db } from "./db"
 import { users } from "./schema"
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () => db.select().from(users).orderBy(asc(users.id)),
   countQuery: db.$count(users),
   page: 2,
@@ -30,9 +30,9 @@ const result = await paginate({
 Better Auth has a separate, ready-made wrapper. Use it inside a **server-side Better Auth plugin endpoint**:
 
 ```ts
-import { paginate } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuth } from "@evensurface/paginate-better-auth"
 
-const result = await paginate<{ id: string }>({
+const result = await paginateBetterAuth<{ id: string }>({
   adapter: ctx.context.adapter,
   model: "user",
   select: ["id"],

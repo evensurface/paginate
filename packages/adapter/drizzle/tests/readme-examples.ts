@@ -9,9 +9,9 @@ import { drizzle } from "drizzle-orm/pg-proxy"
 import {
   createDrizzleAdapter,
   isDrizzlePaginationError,
-  paginate,
-  paginateCursor,
-  paginateOffset,
+  paginateDrizzle,
+  paginateDrizzleCursor,
+  paginateDrizzleOffset,
 } from "../src/index"
 
 const teams = pgTable("readme_teams", {
@@ -57,7 +57,7 @@ export async function compileDrizzleReadmeExamples(
 ) {
   const where = eq(users.active, true)
 
-  const quickStart = await paginate({
+  const quickStart = await paginateDrizzle({
     query: () =>
       db
         .select({
@@ -73,20 +73,20 @@ export async function compileDrizzleReadmeExamples(
     limit,
   })
 
-  const selectedCount = await paginate({
+  const selectedCount = await paginateDrizzle({
     query: () => db.select().from(users).where(where).orderBy(asc(users.id)),
     countQuery: db.select({ total: count() }).from(users).where(where),
     page,
     limit,
   })
 
-  const offsetResult = await paginateOffset({
+  const offsetResult = await paginateDrizzleOffset({
     query: () => db.select().from(users).where(where).orderBy(asc(users.id)),
     countQuery: db.$count(users, where),
     offset,
     limit,
   })
-  const cursorResult = await paginateCursor({
+  const cursorResult = await paginateDrizzleCursor({
     query: ({ cursorWhere, orderBy }) =>
       db
         .select({ id: users.id, name: users.name, createdAt: users.createdAt })
@@ -114,7 +114,7 @@ export async function compileDrizzleReadmeExamples(
   let countQuery = db.select({ total: count() }).from(users).$dynamic()
   countQuery = countQuery.where(dynamicWhere)
 
-  const dynamicResult = await paginate({
+  const dynamicResult = await paginateDrizzle({
     query: () => {
       let query = db
         .select({ id: users.id, name: users.name, createdAt: users.createdAt })
@@ -128,7 +128,7 @@ export async function compileDrizzleReadmeExamples(
     limit,
   })
 
-  const joined = await paginate({
+  const joined = await paginateDrizzle({
     query: () =>
       db
         .select({ userId: users.id, userName: users.name, teamName: teams.name })

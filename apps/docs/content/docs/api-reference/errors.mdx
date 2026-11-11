@@ -104,10 +104,10 @@ These errors happen **before** `count()` or `findMany()`. Invalid pagination con
 
 ```ts
 import { isPaginationError } from "@evensurface/paginate"
-import { paginate } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuth } from "@evensurface/paginate-better-auth"
 
 try {
-  await paginate({
+  await paginateBetterAuth({
     adapter: ctx.context.adapter,
     model: "user",
     select: ["id"],

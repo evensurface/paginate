@@ -18,7 +18,7 @@ export type {
   DrizzleCursorSelectQuery,
   DrizzleCursorValueType,
 } from "./cursor"
-export { createDrizzleCursorAdapter, paginateCursor } from "./cursor"
+export { createDrizzleCursorAdapter, paginateDrizzleCursor } from "./cursor"
 
 export type { DrizzlePaginationError, DrizzlePaginationErrorCode } from "./errors"
 export { isDrizzlePaginationError } from "./errors"
@@ -72,7 +72,7 @@ const paginatedQueries = new WeakSet<object>()
 /**
  * Creates an adapter for Drizzle select and count query builders.
  *
- * Most callers should prefer {@link paginate}. The factory is useful
+ * Most callers should prefer {@link paginateDrizzle}. The factory is useful
  * when composing directly with the core `paginate` function.
  */
 export function createDrizzleAdapter<TItem>(): PaginationAdapter<
@@ -130,7 +130,7 @@ function getCountTotal(result: readonly DrizzleCountRow[]): number {
  *
  * The item type is inferred from the select query.
  */
-export function paginate<TItem>({
+export function paginateDrizzle<TItem>({
   query,
   countQuery,
   page,
@@ -152,7 +152,7 @@ export function paginate<TItem>({
  *
  * The item type is inferred from the select query.
  */
-export function paginateOffset<TItem>({
+export function paginateDrizzleOffset<TItem>({
   query,
   countQuery,
   offset,

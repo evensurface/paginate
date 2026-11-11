@@ -1,6 +1,6 @@
 {
   "name": "@evensurface/paginate",
-  "version": "2.1.1",
+  "version": "3.0.0",
   "description": "Type-safe page, offset, and cursor pagination for TypeScript, Node.js, databases, and any ORM.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",

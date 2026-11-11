@@ -38,9 +38,9 @@ Cursor pagination needs a consistent sort order and normally an index supporting
 You **don't need to write an adapter if you use Drizzle ORM or Better Auth**. Both have ready-made integrations. The `@evensurface/paginate-drizzle` package accepts Drizzle queries. You pass a normal Drizzle query and a count query:
 
 ```ts
-import { paginate } from "@evensurface/paginate-drizzle"
+import { paginateDrizzle } from "@evensurface/paginate-drizzle"
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () => db.select().from(users).orderBy(asc(users.id)),
   countQuery: db.$count(users),
   page: 2,

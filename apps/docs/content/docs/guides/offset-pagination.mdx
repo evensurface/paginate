@@ -14,11 +14,11 @@ For example, `offset: 7` with `limit: 3` skips the first seven matching items an
 
 ```ts
 import { asc } from "drizzle-orm"
-import { paginateOffset } from "@evensurface/paginate-drizzle"
+import { paginateDrizzleOffset } from "@evensurface/paginate-drizzle"
 import { db } from "./db"
 import { users } from "./schema"
 
-const result = await paginateOffset({
+const result = await paginateDrizzleOffset({
   query: () => db.select().from(users).orderBy(asc(users.id)),
   countQuery: db.$count(users),
   offset: 40,
@@ -31,9 +31,9 @@ This asks Drizzle to count users, then **skip 40** and return **up to 20** more.
 ## Use an offset with Better Auth
 
 ```ts
-import { paginateOffset } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuthOffset } from "@evensurface/paginate-better-auth"
 
-const result = await paginateOffset<{ id: string }>({
+const result = await paginateBetterAuthOffset<{ id: string }>({
   adapter: ctx.context.adapter,
   model: "user",
   select: ["id"],

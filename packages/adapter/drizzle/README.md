@@ -42,17 +42,17 @@ yarn add @evensurface/paginate @evensurface/paginate-drizzle drizzle-orm
 ## Quick start
 
 Build a deterministic select-query factory, create a count query with the same filters, and pass
-request inputs directly to `paginate`:
+request inputs directly to `paginateDrizzle`:
 
 ```ts
 import { asc, desc, eq } from "drizzle-orm"
-import { paginate } from "@evensurface/paginate-drizzle"
+import { paginateDrizzle } from "@evensurface/paginate-drizzle"
 import { db } from "./db"
 import { users } from "./schema"
 
 const where = eq(users.active, true)
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () =>
     db
       .select({
@@ -100,12 +100,12 @@ The full result is ready for an API response or a rendered view:
 
 ### Use a native offset
 
-Use `paginateOffset()` when the API exposes a zero-based `offset` directly:
+Use `paginateDrizzleOffset()` when the API exposes a zero-based `offset` directly:
 
 ```ts
-import { paginateOffset } from "@evensurface/paginate-drizzle"
+import { paginateDrizzleOffset } from "@evensurface/paginate-drizzle"
 
-const result = await paginateOffset({
+const result = await paginateDrizzleOffset({
   query: () =>
     db.select().from(users).where(where).orderBy(desc(users.createdAt), asc(users.id)),
   countQuery: db.$count(users, where),
@@ -125,9 +125,9 @@ must combine `cursorWhere` with application filters and apply the supplied `orde
 
 ```ts
 import { and, eq } from "drizzle-orm"
-import { paginateCursor } from "@evensurface/paginate-drizzle"
+import { paginateDrizzleCursor } from "@evensurface/paginate-drizzle"
 
-const result = await paginateCursor({
+const result = await paginateDrizzleCursor({
   query: ({ cursorWhere, orderBy }) =>
     db
       .select({ id: users.id, name: users.name, createdAt: users.createdAt })
@@ -195,7 +195,7 @@ This is the shortest option:
 ```ts
 const where = eq(users.active, true)
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () => db.select().from(users).where(where).orderBy(asc(users.id)),
   countQuery: db.$count(users, where),
   page,
@@ -212,7 +212,7 @@ import { count, eq } from "drizzle-orm"
 
 const where = eq(users.active, true)
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () => db.select().from(users).where(where).orderBy(asc(users.id)),
   countQuery: db.select({ total: count() }).from(users).where(where),
   page,
@@ -283,7 +283,7 @@ let countQuery = db
 
 countQuery = countQuery.where(where)
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () => {
     let query = db
       .select({
@@ -315,7 +315,7 @@ import { asc, eq } from "drizzle-orm"
 
 const where = eq(users.active, true)
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () =>
     db
       .select({
@@ -346,7 +346,7 @@ By default, missing or invalid limits become `20`, and valid limits are clamped 
 const createQuery = () => db.select().from(users).orderBy(asc(users.id))
 const countQuery = db.$count(users)
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: createQuery,
   countQuery,
   page,
@@ -429,7 +429,7 @@ planning, transactions, and entity-counting semantics with the application.
 
 ## Low-level adapter usage
 
-Most applications should import `paginate` or `paginateOffset` from
+Most applications should import `paginateDrizzle` or `paginateDrizzleOffset` from
 `@evensurface/paginate-drizzle`. For custom composition, use `createDrizzleAdapter<TItem>()` with
 the core package:
 
@@ -455,7 +455,7 @@ const result = await paginate({
 
 ### Does Drizzle pagination preserve selected row types?
 
-Yes. The `paginate` function infers its item type from the select query, including partial selects
+Yes. The `paginateDrizzle` function infers its item type from the select query, including partial selects
 and joined result shapes.
 
 ### Can I pass URL query parameters directly?
@@ -476,7 +476,7 @@ driver. It can be used wherever the queries satisfy those Drizzle interfaces.
 
 ### Does it support cursor pagination?
 
-Yes. `paginateCursor()` implements forward-only, count-free keyset pagination using one or more
+Yes. `paginateDrizzleCursor()` implements forward-only, count-free keyset pagination using one or more
 non-null Drizzle columns and an opaque cursor. Numbered-page and native-offset modes are unchanged.
 
 ## Related package

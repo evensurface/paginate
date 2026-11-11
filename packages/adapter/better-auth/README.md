@@ -13,7 +13,7 @@ pnpm add @evensurface/paginate-better-auth better-auth
 Use the adapter available inside a Better Auth plugin endpoint:
 
 ```ts
-import { paginate } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuth } from "@evensurface/paginate-better-auth"
 
 interface Follow {
   id: string
@@ -22,7 +22,7 @@ interface Follow {
   createdAt: Date
 }
 
-const result = await paginate<Follow>({
+const result = await paginateBetterAuth<Follow>({
   adapter: ctx.context.adapter,
   model: "follow",
   where: [{ field: "followerId", value: session.user.id }],
@@ -51,12 +51,12 @@ For three matching rows, `result` looks like this:
 
 ### Start from an offset
 
-Use `paginateOffset()` when your API accepts a zero-based `offset` instead of a page number:
+Use `paginateBetterAuthOffset()` when your API accepts a zero-based `offset` instead of a page number:
 
 ```ts
-import { paginateOffset } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuthOffset } from "@evensurface/paginate-better-auth"
 
-const result = await paginateOffset<Follow>({
+const result = await paginateBetterAuthOffset<Follow>({
   adapter: ctx.context.adapter,
   model: "follow",
   sortBy: { field: "id", direction: "asc" },
@@ -85,7 +85,7 @@ For three rows, the result starts at the second row:
 Pass `select` when each item should contain only specific fields:
 
 ```ts
-const result = await paginate<{ id: string; name: string }>({
+const result = await paginateBetterAuth<{ id: string; name: string }>({
   adapter: ctx.context.adapter,
   model: "project",
   select: ["id", "name"],
@@ -113,7 +113,7 @@ interface ProjectWithTasks {
   }>
 }
 
-const result = await paginate<ProjectWithTasks>({
+const result = await paginateBetterAuth<ProjectWithTasks>({
   adapter: ctx.context.adapter,
   model: "project",
   select: ["id", "name"],
@@ -144,7 +144,7 @@ projects, and `pagination.total` counts projects rather than tasks.
 ### Result types
 
 Better Auth uses string model and field names, so it cannot infer the result type from `model`,
-`select`, or `join`. Pass the item type explicitly, as in `paginate<Follow>()`. Without it, items
+`select`, or `join`. Pass the item type explicitly, as in `paginateBetterAuth<Follow>()`. Without it, items
 are typed as `Record<string, unknown>[]`. Make sure the type describes the fields and relationships
 you request.
 

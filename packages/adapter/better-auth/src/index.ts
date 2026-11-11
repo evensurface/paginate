@@ -105,7 +105,7 @@ function validateFindManyOptions({ sortBy, select, join }: BetterAuthQuery): voi
  * Better Auth does not infer a row type from `model` through its database
  * adapter API. Supply `TItem` explicitly when a precise item type is needed.
  */
-export async function paginate<TItem extends object = Record<string, unknown>>({
+export async function paginateBetterAuth<TItem extends object = Record<string, unknown>>({
   adapter,
   model,
   where,
@@ -135,7 +135,7 @@ export async function paginate<TItem extends object = Record<string, unknown>>({
  * Better Auth does not infer a row type from `model` through its database
  * adapter API. Supply `TItem` explicitly when a precise item type is needed.
  */
-export async function paginateOffset<TItem extends object = Record<string, unknown>>({
+export async function paginateBetterAuthOffset<TItem extends object = Record<string, unknown>>({
   adapter,
   model,
   where,

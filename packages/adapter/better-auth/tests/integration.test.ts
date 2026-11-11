@@ -9,7 +9,7 @@ import { createAuthEndpoint } from "better-auth/api"
 import { getMigrations } from "better-auth/db/migration"
 import Database from "better-sqlite3"
 import { afterEach, describe, expect, it } from "vitest"
-import { paginate, paginateOffset } from "../src/index"
+import { paginateBetterAuth, paginateBetterAuthOffset } from "../src/index"
 
 interface Follow {
   id: string
@@ -46,7 +46,7 @@ interface SelectedProjectWithDetail {
 }
 
 const followPlugin = {
-  id: "paginate-follow-test",
+  id: "paginateBetterAuth-follow-test",
   schema: {
     follow: {
       fields: {
@@ -84,10 +84,10 @@ const followPlugin = {
   },
   endpoints: {
     paginateFollows: createAuthEndpoint(
-      "/paginate-follow-test/follows",
+      "/paginateBetterAuth-follow-test/follows",
       { method: "GET" },
       async (context) =>
-        paginate<Follow>({
+        paginateBetterAuth<Follow>({
           adapter: context.context.adapter,
           model: "follow",
           where: [{ field: "followerId", value: "user-1" }],
@@ -150,7 +150,7 @@ async function verifyRealAdapter<Options extends BetterAuthOptions>(
   const where = [{ field: "followerId", value: "user-1" }]
   const sortBy = { field: "id", direction: "asc" } as const
 
-  const page = await paginate<Follow>({
+  const page = await paginateBetterAuth<Follow>({
     adapter,
     model: "follow",
     where,
@@ -161,7 +161,7 @@ async function verifyRealAdapter<Options extends BetterAuthOptions>(
   expect(page.items.map((item) => item.id)).toEqual(["follow-03"])
   expect(page.pagination).toMatchObject({ page: 2, offset: 2, total: 3, totalPages: 2 })
 
-  const offset = await paginateOffset<Follow>({
+  const offset = await paginateBetterAuthOffset<Follow>({
     adapter,
     model: "follow",
     where,
@@ -178,7 +178,7 @@ async function verifyRealAdapter<Options extends BetterAuthOptions>(
     hasPreviousPage: true,
   })
 
-  const empty = await paginate<Follow>({
+  const empty = await paginateBetterAuth<Follow>({
     adapter,
     model: "follow",
     where: [{ field: "followerId", value: "missing-user" }],
@@ -188,8 +188,8 @@ async function verifyRealAdapter<Options extends BetterAuthOptions>(
   expect(empty.pagination).toMatchObject({ total: 0, totalPages: 0 })
 
   const [first, second] = await Promise.all([
-    paginate<Follow>({ adapter, model: "follow", where, sortBy, page: 1, limit: 1 }),
-    paginate<Follow>({ adapter, model: "follow", where, sortBy, page: 2, limit: 1 }),
+    paginateBetterAuth<Follow>({ adapter, model: "follow", where, sortBy, page: 1, limit: 1 }),
+    paginateBetterAuth<Follow>({ adapter, model: "follow", where, sortBy, page: 2, limit: 1 }),
   ])
   expect(first.items[0]?.id).toBe("follow-01")
   expect(second.items[0]?.id).toBe("follow-02")
@@ -243,7 +243,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
 ): Promise<void> {
   await seedProjects(adapter)
 
-  const selected = await paginate<Pick<Project, "id">>({
+  const selected = await paginateBetterAuth<Pick<Project, "id">>({
     adapter,
     model: "project",
     select: ["id"],
@@ -255,7 +255,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
   expect(selected.pagination).toMatchObject({ page: 2, offset: 1, total: 4, totalPages: 4 })
 
   const joinedSelect = ["id"]
-  const joined = await paginate<SelectedProjectWithTasks>({
+  const joined = await paginateBetterAuth<SelectedProjectWithTasks>({
     adapter,
     model: "project",
     select: joinedSelect,
@@ -271,7 +271,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
   expect(joined.pagination).toMatchObject({ page: 1, total: 4, totalPages: 4 })
   expect(joinedSelect).toEqual(["id"])
 
-  const joinedSecondPage = await paginate<SelectedProjectWithTasks>({
+  const joinedSecondPage = await paginateBetterAuth<SelectedProjectWithTasks>({
     adapter,
     model: "project",
     select: ["id"],
@@ -285,7 +285,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
   expect(joinedSecondPage.items[0]?.task).toHaveLength(1)
   expect(joinedSecondPage.pagination).toMatchObject({ page: 2, total: 4, totalPages: 4 })
 
-  const filteredJoin = await paginate<SelectedProjectWithTasks>({
+  const filteredJoin = await paginateBetterAuth<SelectedProjectWithTasks>({
     adapter,
     model: "project",
     where: [{ field: "name", value: "First project" }],
@@ -300,7 +300,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
 
   const offsetSelect = ["id"]
   const offsetJoin = { task: { limit: 2 } }
-  const joinedOffset = await paginateOffset<SelectedProjectWithTasks>({
+  const joinedOffset = await paginateBetterAuthOffset<SelectedProjectWithTasks>({
     adapter,
     model: "project",
     select: offsetSelect,
@@ -325,7 +325,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
   expect(offsetSelect).toEqual(["id"])
   expect(offsetJoin).toEqual({ task: { limit: 2 } })
 
-  const oneToOne = await paginateOffset<SelectedProjectWithDetail>({
+  const oneToOne = await paginateBetterAuthOffset<SelectedProjectWithDetail>({
     adapter,
     model: "project",
     select: ["id"],
@@ -343,7 +343,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
   expect(oneToOne.items[1]?.projectDetail).toBeNull()
   expect(oneToOne.pagination).toMatchObject({ total: 4, offset: 0, limit: 2 })
 
-  const duplicateSort = await paginateOffset<Project>({
+  const duplicateSort = await paginateBetterAuthOffset<Project>({
     adapter,
     model: "project",
     sortBy: { field: "name", direction: "asc" },
@@ -362,7 +362,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
     ),
   ).toEqual(new Set(["project-02", "project-04"]))
 
-  const unsorted = await paginateOffset<Project>({
+  const unsorted = await paginateBetterAuthOffset<Project>({
     adapter,
     model: "project",
     offset: 0,
@@ -374,7 +374,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
   expect(unsorted.pagination.total).toBe(4)
 
   await expect(
-    paginate({
+    paginateBetterAuth({
       adapter,
       model: "project",
       join: { follow: true },

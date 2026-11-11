@@ -17,11 +17,11 @@ An **adapter** translates Paginate's request for a count and a slice of records 
 
 ```ts
 import { asc } from "drizzle-orm"
-import { paginate } from "@evensurface/paginate-drizzle"
+import { paginateDrizzle } from "@evensurface/paginate-drizzle"
 import { db } from "./db"
 import { users } from "./schema"
 
-const result = await paginate({
+const result = await paginateDrizzle({
   query: () => db.select().from(users).orderBy(asc(users.id)),
   countQuery: db.$count(users),
   page: 2,
@@ -34,9 +34,9 @@ The Drizzle wrapper executes `countQuery` and applies limit/offset to the select
 ## Better Auth example
 
 ```ts
-import { paginate } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuth } from "@evensurface/paginate-better-auth"
 
-const result = await paginate<{ id: string }>({
+const result = await paginateBetterAuth<{ id: string }>({
   adapter: ctx.context.adapter,
   model: "user",
   select: ["id"],

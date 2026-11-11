@@ -6,12 +6,12 @@ description: Public functions exported by @evensurface/paginate-better-auth, inc
 **`@evensurface/paginate-better-auth`** exposes two runtime functions, both using a Better Auth database adapter. It does not export a standalone adapter factory, HTTP endpoints, or a cursor-paginating function.
 
 ```ts
-import { paginate, paginateOffset } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuth, paginateBetterAuthOffset } from "@evensurface/paginate-better-auth"
 ```
 
 For a complete example with filters and relationships, start with the [Better Auth Adapter Guide](/docs/adapters/better-auth).
 
-## `paginate<TItem>(options)`
+## `paginateBetterAuth<TItem>(options)`
 
 Returns one **1-based numbered page** of records from a Better Auth model.
 
@@ -20,9 +20,9 @@ Returns one **1-based numbered page** of records from a Better Auth model.
 - **Generic:** `TItem extends object = Record<string, unknown>`; supply a row type explicitly when needed.
 
 ```ts
-import { paginate } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuth } from "@evensurface/paginate-better-auth"
 
-const result = await paginate<{ id: string }>({
+const result = await paginateBetterAuth<{ id: string }>({
   adapter: ctx.context.adapter,
   model: "user",
   select: ["id"],
@@ -36,7 +36,7 @@ const result = await paginate<{ id: string }>({
 
 `pagination` contains `page`, `limit`, `offset`, `total`, `totalPages`, `hasNextPage`, `hasPreviousPage`, `firstItem`, and `lastItem`. The core normalizes invalid request values, clamps out-of-range pages, and skips fetching if the count is zero.
 
-## `paginateOffset<TItem>(options)`
+## `paginateBetterAuthOffset<TItem>(options)`
 
 Returns records beginning at a **zero-based numeric offset**, without turning it into a page number.
 
@@ -45,9 +45,9 @@ Returns records beginning at a **zero-based numeric offset**, without turning it
 - **Generic:** `TItem extends object = Record<string, unknown>`.
 
 ```ts
-import { paginateOffset } from "@evensurface/paginate-better-auth"
+import { paginateBetterAuthOffset } from "@evensurface/paginate-better-auth"
 
-const result = await paginateOffset<{ id: string }>({
+const result = await paginateBetterAuthOffset<{ id: string }>({
   adapter: ctx.context.adapter,
   model: "user",
   select: ["id"],
@@ -108,7 +108,7 @@ Find examples in the [Errors reference](/docs/api-reference/errors#better-auth-a
 
 | Export | Purpose |
 | --- | --- |
-| `paginate` | 1-based page-number pagination through Better Auth. |
-| `paginateOffset` | Zero-based offset pagination through Better Auth. |
+| `paginateBetterAuth` | 1-based page-number pagination through Better Auth. |
+| `paginateBetterAuthOffset` | Zero-based offset pagination through Better Auth. |
 
 The package also exports the TypeScript aliases and interfaces documented in [Better Auth Types](/docs/api-reference/better-auth-types). `PaginatedResult`, `OffsetPaginatedResult`, `PaginationInput`, and `PageSizeOptions` are defined and exported by the **core** `@evensurface/paginate` package.

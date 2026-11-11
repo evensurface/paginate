@@ -27,16 +27,18 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter @evensurface/paginate pack --pack-destination .artifacts
       - run: pnpm --filter @evensurface/paginate-drizzle pack --pack-destination .artifacts
-      - name: Use Node.js 18.18
+      - run: pnpm --filter @evensurface/paginate-better-auth pack --pack-destination .artifacts
+      - name: Use Node.js 22.18
         uses: actions/setup-node@v4
         with:
-          node-version: 18.18
+          node-version: 22.18
       - name: Verify package runtime compatibility
         run: |
           node --input-type=module --eval "
             import assert from 'node:assert/strict'
             import * as pager from './packages/paginate/dist/index.mjs'
             import * as drizzle from './packages/adapter/drizzle/dist/index.mjs'
+            import * as betterAuth from './packages/adapter/better-auth/dist/index.mjs'
             assert.equal(pager.parsePage('3'), 3)
             assert.equal(pager.parseOffset('3'), 3)
             assert.equal(typeof pager.paginateOffset, 'function')
@@ -44,11 +46,14 @@ jobs:
             assert.equal(typeof drizzle.paginate, 'function')
             assert.equal(typeof drizzle.paginateOffset, 'function')
             assert.equal(typeof drizzle.paginateCursor, 'function')
+            assert.equal(typeof betterAuth.paginate, 'function')
+            assert.equal(typeof betterAuth.paginateOffset, 'function')
           "
           node --eval "
             const assert = require('node:assert/strict')
             const pager = require('./packages/paginate/dist/index.cjs')
             const drizzle = require('./packages/adapter/drizzle/dist/index.cjs')
+            const betterAuth = require('./packages/adapter/better-auth/dist/index.cjs')
             assert.equal(pager.parsePage('3'), 3)
             assert.equal(pager.parseOffset('3'), 3)
             assert.equal(typeof pager.paginateOffset, 'function')
@@ -56,4 +61,6 @@ jobs:
             assert.equal(typeof drizzle.paginate, 'function')
             assert.equal(typeof drizzle.paginateOffset, 'function')
             assert.equal(typeof drizzle.paginateCursor, 'function')
+            assert.equal(typeof betterAuth.paginate, 'function')
+            assert.equal(typeof betterAuth.paginateOffset, 'function')
           "

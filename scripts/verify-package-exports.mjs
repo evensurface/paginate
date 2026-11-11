@@ -78,6 +78,19 @@ const packages = [
     ],
     privateExports: [],
   },
+  {
+    directory: "packages/adapter/better-auth",
+    expectedExports: ["paginate", "paginateOffset"],
+    expectedTypeExports: [
+      "BetterAuthDatabaseAdapter",
+      "BetterAuthFindManyOptions",
+      "BetterAuthOffsetPaginationOptions",
+      "BetterAuthPaginationOptions",
+      "BetterAuthSortBy",
+      "BetterAuthWhere",
+    ],
+    privateExports: [],
+  },
 ]
 
 const declarationParserProbe = getDeclarationExports(

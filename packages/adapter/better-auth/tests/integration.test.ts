@@ -29,9 +29,20 @@ interface Task {
   title: string
 }
 
+interface ProjectDetail {
+  id: string
+  projectId: string
+  summary: string
+}
+
 interface SelectedProjectWithTasks {
   id: string
   task: Task[]
+}
+
+interface SelectedProjectWithDetail {
+  id: string
+  projectDetail: ProjectDetail | null
 }
 
 const followPlugin = {
@@ -57,6 +68,17 @@ const followPlugin = {
           references: { model: "project", field: "id" },
         },
         title: { type: "string", required: true },
+      },
+    },
+    projectDetail: {
+      fields: {
+        projectId: {
+          type: "string",
+          required: true,
+          unique: true,
+          references: { model: "project", field: "id" },
+        },
+        summary: { type: "string", required: true },
       },
     },
   },
@@ -179,6 +201,8 @@ async function seedProjects<Options extends BetterAuthOptions>(
   for (const project of [
     { id: "project-01", name: "First project" },
     { id: "project-02", name: "Second project" },
+    { id: "project-03", name: "Empty project" },
+    { id: "project-04", name: "Second project" },
   ]) {
     await adapter.create<Project, Project>({
       model: "project",
@@ -190,7 +214,10 @@ async function seedProjects<Options extends BetterAuthOptions>(
   for (const task of [
     { id: "task-01", projectId: "project-01", title: "First task" },
     { id: "task-02", projectId: "project-01", title: "Second task" },
-    { id: "task-03", projectId: "project-02", title: "Third task" },
+    { id: "task-03", projectId: "project-01", title: "Third task" },
+    { id: "task-04", projectId: "project-02", title: "Fourth task" },
+    { id: "task-05", projectId: "project-04", title: "Fifth task" },
+    { id: "task-06", projectId: "project-04", title: "Sixth task" },
   ]) {
     await adapter.create<Task, Task>({
       model: "task",
@@ -198,6 +225,17 @@ async function seedProjects<Options extends BetterAuthOptions>(
       forceAllowId: true,
     })
   }
+
+  const detail: ProjectDetail = {
+    id: "project-detail-01",
+    projectId: "project-01",
+    summary: "First project details",
+  }
+  await adapter.create<ProjectDetail, ProjectDetail>({
+    model: "projectDetail",
+    data: detail,
+    forceAllowId: true,
+  })
 }
 
 async function verifyFindManyOptions<Options extends BetterAuthOptions>(
@@ -214,7 +252,7 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
     limit: 1,
   })
   expect(selected.items).toEqual([{ id: "project-02" }])
-  expect(selected.pagination).toMatchObject({ page: 2, offset: 1, total: 2, totalPages: 2 })
+  expect(selected.pagination).toMatchObject({ page: 2, offset: 1, total: 4, totalPages: 4 })
 
   const joinedSelect = ["id"]
   const joined = await paginate<SelectedProjectWithTasks>({
@@ -229,8 +267,8 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
   expect(joined.items).toHaveLength(1)
   expect(joined.items[0]?.id).toBe("project-01")
   expect(joined.items[0]?.task).toHaveLength(1)
-  expect(joined.items[0]).toHaveProperty("name", undefined)
-  expect(joined.pagination).toMatchObject({ page: 1, total: 2, totalPages: 2 })
+  expect((joined.items[0] as unknown as { name?: unknown }).name).toBeUndefined()
+  expect(joined.pagination).toMatchObject({ page: 1, total: 4, totalPages: 4 })
   expect(joinedSelect).toEqual(["id"])
 
   const joinedSecondPage = await paginate<SelectedProjectWithTasks>({
@@ -245,20 +283,84 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
   expect(joinedSecondPage.items).toHaveLength(1)
   expect(joinedSecondPage.items[0]?.id).toBe("project-02")
   expect(joinedSecondPage.items[0]?.task).toHaveLength(1)
-  expect(joinedSecondPage.pagination).toMatchObject({ page: 2, total: 2, totalPages: 2 })
+  expect(joinedSecondPage.pagination).toMatchObject({ page: 2, total: 4, totalPages: 4 })
 
   const filteredJoin = await paginate<SelectedProjectWithTasks>({
     adapter,
     model: "project",
-    where: [{ field: "name", value: "Second project" }],
+    where: [{ field: "name", value: "First project" }],
     select: ["id"],
     join: { task: { limit: 1 } },
     sortBy: { field: "id", direction: "asc" },
   })
   expect(filteredJoin.items).toHaveLength(1)
-  expect(filteredJoin.items[0]?.id).toBe("project-02")
+  expect(filteredJoin.items[0]?.id).toBe("project-01")
   expect(filteredJoin.items[0]?.task).toHaveLength(1)
   expect(filteredJoin.pagination).toMatchObject({ total: 1, totalPages: 1 })
+
+  const offsetSelect = ["id"]
+  const offsetJoin = { task: { limit: 2 } }
+  const joinedOffset = await paginateOffset<SelectedProjectWithTasks>({
+    adapter,
+    model: "project",
+    select: offsetSelect,
+    join: offsetJoin,
+    sortBy: { field: "id", direction: "asc" },
+    offset: 0,
+    limit: 4,
+  })
+  expect(joinedOffset.items.map(({ id, task }) => [id, task.length])).toEqual([
+    ["project-01", 2],
+    ["project-02", 1],
+    ["project-03", 0],
+    ["project-04", 2],
+  ])
+  expect(joinedOffset.pagination).toEqual({
+    total: 4,
+    limit: 4,
+    offset: 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  })
+  expect(offsetSelect).toEqual(["id"])
+  expect(offsetJoin).toEqual({ task: { limit: 2 } })
+
+  const oneToOne = await paginateOffset<SelectedProjectWithDetail>({
+    adapter,
+    model: "project",
+    select: ["id"],
+    join: { projectDetail: true },
+    sortBy: { field: "id", direction: "asc" },
+    offset: 0,
+    limit: 2,
+  })
+  expect(oneToOne.items.map((item) => item.id)).toEqual(["project-01", "project-02"])
+  expect(oneToOne.items[0]?.projectDetail).toEqual({
+    id: "project-detail-01",
+    projectId: "project-01",
+    summary: "First project details",
+  })
+  expect(oneToOne.items[1]?.projectDetail).toBeNull()
+  expect(oneToOne.pagination).toMatchObject({ total: 4, offset: 0, limit: 2 })
+
+  const duplicateSort = await paginateOffset<Project>({
+    adapter,
+    model: "project",
+    sortBy: { field: "name", direction: "asc" },
+    offset: 0,
+    limit: 4,
+  })
+  expect(duplicateSort.items.map((item) => item.name)).toEqual([
+    "Empty project",
+    "First project",
+    "Second project",
+    "Second project",
+  ])
+  expect(
+    new Set(
+      duplicateSort.items.filter((item) => item.name === "Second project").map((item) => item.id),
+    ),
+  ).toEqual(new Set(["project-02", "project-04"]))
 
   const unsorted = await paginateOffset<Project>({
     adapter,
@@ -267,9 +369,9 @@ async function verifyFindManyOptions<Options extends BetterAuthOptions>(
     limit: 10,
   })
   expect(new Set(unsorted.items.map((item) => item.id))).toEqual(
-    new Set(["project-01", "project-02"]),
+    new Set(["project-01", "project-02", "project-03", "project-04"]),
   )
-  expect(unsorted.pagination.total).toBe(2)
+  expect(unsorted.pagination.total).toBe(4)
 
   await expect(
     paginate({
@@ -295,7 +397,7 @@ describe("real Better Auth adapters", () => {
       const auth = betterAuth({
         ...authDefaults,
         advanced: { database: { joins } },
-        database: memoryAdapter({ follow: [], project: [], task: [] }),
+        database: memoryAdapter({ follow: [], project: [], task: [], projectDetail: [] }),
       })
       const context = await auth.$context
 

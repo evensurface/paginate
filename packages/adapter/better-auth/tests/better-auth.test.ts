@@ -106,6 +106,33 @@ describe("Better Auth pagination", () => {
     })
   })
 
+  it("protects caller-owned join options from adapter mutation", async () => {
+    const { adapter, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
+    const join = { profile: { limit: 1 } }
+
+    findMany.mockImplementation(async (options) => {
+      const receivedJoin = (options as { join?: typeof join }).join
+      if (receivedJoin) receivedJoin.profile.limit = 99
+      return [{ id: "1", followerId: "user-1" }]
+    })
+
+    await paginateOffset<Follow>({
+      adapter,
+      model: "follow",
+      select: ["id"],
+      join,
+      sortBy,
+    })
+
+    expect(join).toEqual({ profile: { limit: 1 } })
+    const receivedOptions = findMany.mock.calls[0]?.[0] as { join?: typeof join } | undefined
+    const receivedJoin = receivedOptions?.join
+    expect(receivedJoin).toBeDefined()
+    expect(receivedJoin?.profile.limit).toBe(99)
+    expect(receivedJoin).not.toBe(join)
+    expect(receivedJoin?.profile).not.toBe(join.profile)
+  })
+
   it("omits optional findMany options instead of inventing an order", async () => {
     const { adapter, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
 
@@ -180,6 +207,22 @@ describe("Better Auth pagination", () => {
       expect(findMany).not.toHaveBeenCalled()
     },
   )
+
+  it("validates join limits before page-size options", async () => {
+    const { adapter, count, findMany } = createAdapter([{ id: "1", followerId: "user-1" }])
+
+    await expect(
+      paginate({
+        adapter,
+        model: "follow",
+        join: { profile: { limit: 0 } },
+        pageSizeOptions: { minLimit: 20, maxLimit: 10 },
+      }),
+    ).rejects.toThrow("join.profile.limit must be a positive safe integer")
+
+    expect(count).not.toHaveBeenCalled()
+    expect(findMany).not.toHaveBeenCalled()
+  })
 
   it("supports arbitrary offsets and custom page-size options", async () => {
     const items = Array.from({ length: 50 }, (_, index) => ({

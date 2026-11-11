@@ -62,7 +62,16 @@ function createPaginationAdapter<TItem extends object>(
         offset,
         ...(sortBy === undefined ? {} : { sortBy }),
         ...(select === undefined ? {} : { select: [...select] }),
-        ...(join === undefined ? {} : { join }),
+        ...(join === undefined
+          ? {}
+          : {
+              join: Object.fromEntries(
+                Object.entries(join).map(([model, option]) => [
+                  model,
+                  typeof option === "object" && option !== null ? { ...option } : option,
+                ]),
+              ),
+            }),
       }),
   }
 }

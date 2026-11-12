@@ -28,7 +28,7 @@ type PaginationInput = string | number
 
 This is the type accepted by optional `page`, `offset`, and `limit` inputs. Strings are useful because URL query parameters normally arrive as text.
 
-Examples: `2`, `"2"`, and `" 2 "` can be parsed as valid integers. An invalid value such as `"abc"` uses the relevant fallback. This type does **not** include `undefined`, but the function properties accepting it are optional (`page?: PaginationInput`), so omitting them is allowed.
+Examples: `2`, `"2"`, and `" 2 "` can be parsed as valid integers. An invalid value such as `"abc"` uses the relevant fallback. `PaginationInput` itself does not include `undefined`; request and function option properties add it explicitly so both omitted properties and properties whose value is `undefined` work with `exactOptionalPropertyTypes`.
 
 See [Input Helpers](/docs/api-reference#input-helpers) for the exact parsing rules.
 
@@ -36,9 +36,9 @@ See [Input Helpers](/docs/api-reference#input-helpers) for the exact parsing rul
 
 ```ts
 interface PageSizeOptions {
-  defaultLimit?: number
-  minLimit?: number
-  maxLimit?: number
+  defaultLimit?: number | undefined
+  minLimit?: number | undefined
+  maxLimit?: number | undefined
 }
 ```
 
@@ -57,6 +57,29 @@ const pageSizeOptions: PageSizeOptions = {
   maxLimit: 200,
 }
 ```
+
+### Request-level pagination inputs
+
+```ts
+interface PagePaginationInput {
+  page?: PaginationInput | undefined
+  limit?: PaginationInput | undefined
+}
+
+interface OffsetPaginationInput {
+  offset?: PaginationInput | undefined
+  limit?: PaginationInput | undefined
+}
+
+interface CursorPaginationInput {
+  cursor?: string | undefined
+  limit?: PaginationInput | undefined
+}
+```
+
+These exported interfaces describe only values commonly supplied by request handlers. They do not
+include adapters, queries, models, or framework fields. Use them for validated or unvalidated
+request objects regardless of the validation library used by the application.
 
 ## Adapter types
 
@@ -112,13 +135,11 @@ The adapter must enforce a stable order that matches `getPosition()`. See the [c
 ### `PaginationOptions`
 
 ```ts
-interface PaginationOptions<TQuery, TCountQuery, TItem> {
+interface PaginationOptions<TQuery, TCountQuery, TItem> extends PagePaginationInput {
   adapter: PaginationAdapter<TQuery, TCountQuery, TItem>
   query: TQuery
   countQuery: TCountQuery
-  page?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 ```
 
@@ -138,13 +159,11 @@ It returns a [`PaginatedResult<TItem>`](#paginatedresult).
 ### `OffsetPaginationOptions`
 
 ```ts
-interface OffsetPaginationOptions<TQuery, TCountQuery, TItem> {
+interface OffsetPaginationOptions<TQuery, TCountQuery, TItem> extends OffsetPaginationInput {
   adapter: PaginationAdapter<TQuery, TCountQuery, TItem>
   query: TQuery
   countQuery: TCountQuery
-  offset?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 ```
 
@@ -164,12 +183,10 @@ It returns an [`OffsetPaginatedResult<TItem>`](#offsetpaginatedresult).
 ### `CursorPaginationOptions`
 
 ```ts
-interface CursorPaginationOptions<TQuery, TItem> {
+interface CursorPaginationOptions<TQuery, TItem> extends CursorPaginationInput {
   adapter: CursorPaginationAdapter<TQuery, TItem>
   query: TQuery
-  cursor?: string
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 ```
 

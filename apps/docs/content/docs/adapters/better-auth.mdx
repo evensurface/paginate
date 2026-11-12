@@ -10,13 +10,13 @@ The integration supports **page-number** and **zero-based offset** pagination. I
 ## 1. Install
 
 ```bash
-pnpm add @evensurface/paginate-better-auth better-auth
+pnpm add @evensurface/paginate @evensurface/paginate-better-auth better-auth
 ```
 
 Or with npm:
 
 ```bash
-npm install @evensurface/paginate-better-auth better-auth
+npm install @evensurface/paginate @evensurface/paginate-better-auth better-auth
 ```
 
 This package depends on the core `@evensurface/paginate` engine. Its declared compatibility is **Node.js 22.18 or newer** and **Better Auth `>=1.7.18 <1.8.0`**. The core package and Drizzle integration have different Node.js requirements; use this package's requirement for a Better Auth application.
@@ -117,7 +117,72 @@ With three matching follows, the response is:
 
 Offset mode preserves the requested, zero-based offset, even if it is beyond the end; in that case `items` is empty. Its metadata has **no** `page`, `totalPages`, `firstItem`, or `lastItem` fields. See [`OffsetPaginatedResult<TItem>`](/docs/api-reference/types#offsetpaginatedresult).
 
-## 4. Filter, sort, and select fields
+## 4. Match Better Auth's list response
+
+The pagination functions return Paginate's stable `{ items, pagination }` result. They do **not**
+automatically reproduce Better Auth's flat list response:
+
+```ts
+type BetterAuthListResult = {
+  users: User[]
+  total: number
+  limit: number | undefined
+  offset: number | undefined
+}
+```
+
+If an endpoint must match that contract, transform the result explicitly:
+
+```ts
+const requestedLimit = ctx.query.limit
+const requestedOffset = ctx.query.offset
+
+const result = await paginateBetterAuthOffset<User>({
+  adapter: ctx.context.adapter,
+  model: "user",
+  limit: requestedLimit,
+  offset: requestedOffset,
+  sortBy: { field: "createdAt", direction: "desc" },
+})
+
+return {
+  users: result.items,
+  total: result.pagination.total,
+  limit: requestedLimit === undefined ? undefined : result.pagination.limit,
+  offset: requestedOffset === undefined ? undefined : result.pagination.offset,
+}
+```
+
+This preserves `undefined` when the client omitted `limit` or `offset`, while returning normalized
+numbers for values that were provided. To always expose the effective defaults instead, return
+`result.pagination.limit` and `result.pagination.offset` directly; those fields are always numbers.
+
+## 5. Use developer-defined request validation
+
+Paginate is validation-library agnostic. Define the endpoint query schema with Zod, Valibot,
+ArkType, another Standard Schema-compatible library, or your own validation code. The resulting
+request values can use the exported core contract:
+
+```ts
+import type { OffsetPaginationInput } from "@evensurface/paginate"
+
+declare const query: OffsetPaginationInput
+
+const result = await paginateBetterAuthOffset<Follow>({
+  adapter: ctx.context.adapter,
+  model: "follow",
+  sortBy: { field: "id", direction: "asc" },
+  limit: query.limit,
+  offset: query.offset,
+})
+```
+
+`PagePaginationInput` and `OffsetPaginationInput` accept explicitly present `undefined` properties
+under `exactOptionalPropertyTypes`. Request validation controls which transport values reach the
+handler; Paginate separately normalizes missing or invalid numeric values using its documented
+defaults.
+
+## 6. Filter, sort, and select fields
 
 These options come from Better Auth's public `findMany()` contract:
 
@@ -147,7 +212,7 @@ const result = await paginateBetterAuth<{ id: string }>({
 
 If `select` is non-empty and `sortBy` is supplied, the selected fields **must include** `sortBy.field`. Otherwise, the wrapper throws `TypeError` before querying. When no `sortBy` is provided, the database decides the order; a non-unique field also leaves ties ambiguous because Better Auth accepts only one sorting field.
 
-## 5. Load relationships with `join`
+## 7. Load relationships with `join`
 
 Better Auth can load relationships described by your schema. For example, suppose a plugin declares a `project` model and a `task` model whose `projectId` field references `project.id`:
 
@@ -186,7 +251,7 @@ Important rules and limitations:
 
 The wrapper copies the `select` array, `join` map, and each object-valued join option before forwarding them. This protects those caller-owned inputs from mutations by the Better Auth adapter. Depending on how joins run, unselected schema fields can be absent or present with `undefined`; handle either shape.
 
-## 6. Understand the returned types
+## 8. Understand the returned types
 
 Better Auth accepts model and field names as strings. It **cannot infer a row type** from `model`, `select`, or `join` at compile time. Supply the result shape explicitly:
 
@@ -202,7 +267,7 @@ const result = await paginateBetterAuth<ProjectWithTasks>({
 
 The generic `ProjectWithTasks` is a **caller assertion**, not schema validation: make sure it matches the fields and relationships you request. Without a generic, `items` defaults to `Record<string, unknown>[]`. Drizzle's query-based row inference is different; see the [Drizzle guide](/docs/adapters/drizzle).
 
-## 7. Query execution, safety, and errors
+## 9. Query execution, safety, and errors
 
 1. The wrapper validates the supported `select` and `join` combinations.
 2. Core pagination parses and normalizes `page`/`offset` and `limit`.

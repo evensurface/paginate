@@ -1,3 +1,4 @@
+import type { CursorPaginationInput } from "@evensurface/paginate"
 import { and, eq } from "drizzle-orm"
 import { int, mysqlTable, varchar } from "drizzle-orm/mysql-core"
 import { drizzle as drizzleMysql } from "drizzle-orm/mysql-proxy"
@@ -9,6 +10,7 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest"
 import {
   createDrizzleCursorAdapter,
   type DrizzleCursorOrder,
+  type DrizzleCursorPaginationOptions,
   isDrizzlePaginationError,
   paginateDrizzleCursor,
 } from "../src/index"
@@ -23,6 +25,20 @@ const fakeOrder = {
 }
 
 describe("paginateDrizzleCursor", () => {
+  it("accepts explicit undefined in shared cursor request inputs", async () => {
+    const input: CursorPaginationInput = { cursor: undefined, limit: undefined }
+    const options: DrizzleCursorPaginationOptions<User> = {
+      query: () => ({ limit: () => Promise.resolve([{ id: 1, name: "Ada" }]) }),
+      orderBy: [fakeOrder],
+      ...input,
+      pageSizeOptions: undefined,
+    }
+    const result = await paginateDrizzleCursor(options)
+
+    expect(result.pagination).toMatchObject({ limit: 20, hasNextPage: false })
+    expectTypeOf(result.items).toEqualTypeOf<User[]>()
+  })
+
   it("returns count-free lookahead metadata and inferred items", async () => {
     const limit = vi.fn((value: number) =>
       Promise.resolve(

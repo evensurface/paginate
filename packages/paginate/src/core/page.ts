@@ -12,9 +12,9 @@ export const MAX_PAGE_SIZE = 100
  * Configuration for parsing and restricting page sizes.
  */
 export interface PageSizeOptions {
-  defaultLimit?: number
-  minLimit?: number
-  maxLimit?: number
+  defaultLimit?: number | undefined
+  minLimit?: number | undefined
+  maxLimit?: number | undefined
 }
 
 /**

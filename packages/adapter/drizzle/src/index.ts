@@ -1,9 +1,10 @@
 import {
   type OffsetPaginatedResult,
+  type OffsetPaginationInput,
+  type PagePaginationInput,
   type PageSizeOptions,
   type PaginatedResult,
   type PaginationAdapter,
-  type PaginationInput,
   paginate as paginateCore,
   paginateOffset as paginateOffsetCore,
 } from "@evensurface/paginate"
@@ -47,24 +48,20 @@ export type DrizzleCountResult = number | readonly DrizzleCountRow[]
 /** An executable Drizzle count query. */
 export type DrizzleCountQuery = PromiseLike<DrizzleCountResult>
 
-export interface DrizzlePaginationOptions<TItem> {
+export interface DrizzlePaginationOptions<TItem> extends PagePaginationInput {
   /** Creates a deterministic select query. Include an `orderBy` with a unique tie-breaker. */
   query: DrizzleSelectQueryFactory<TItem>
   /** A `$count()` or `select({ total: count() })` query matching `query` filters. */
   countQuery: DrizzleCountQuery
-  page?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 
-export interface DrizzleOffsetPaginationOptions<TItem> {
+export interface DrizzleOffsetPaginationOptions<TItem> extends OffsetPaginationInput {
   /** Creates a deterministic select query. Include an `orderBy` with a unique tie-breaker. */
   query: DrizzleSelectQueryFactory<TItem>
   /** A `$count()` or `select({ total: count() })` query matching `query` filters. */
   countQuery: DrizzleCountQuery
-  offset?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 
 const paginatedQueries = new WeakSet<object>()

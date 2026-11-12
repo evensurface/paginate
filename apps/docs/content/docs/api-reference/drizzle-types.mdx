@@ -90,9 +90,9 @@ An **awaitable** Drizzle count query. Pass the query itself to `countQuery`; the
 interface DrizzlePaginationOptions<TItem> {
   query: DrizzleSelectQueryFactory<TItem>
   countQuery: DrizzleCountQuery
-  page?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  page?: PaginationInput | undefined
+  limit?: PaginationInput | undefined
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 ```
 
@@ -114,9 +114,9 @@ Passed to `paginateDrizzle()` from `@evensurface/paginate-drizzle`.
 interface DrizzleOffsetPaginationOptions<TItem> {
   query: DrizzleSelectQueryFactory<TItem>
   countQuery: DrizzleCountQuery
-  offset?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  offset?: PaginationInput | undefined
+  limit?: PaginationInput | undefined
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 ```
 
@@ -272,9 +272,9 @@ Example: `createdAt DESC, id DESC`. See [Drizzle Cursor Pagination](/docs/adapte
 interface DrizzleCursorPaginationOptions<TItem> {
   query: DrizzleCursorQueryFactory<TItem>
   orderBy: DrizzleCursorOrder<TItem>
-  cursor?: string
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  cursor?: string | undefined
+  limit?: PaginationInput | undefined
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 ```
 

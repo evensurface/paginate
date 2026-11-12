@@ -2,13 +2,16 @@ import { describe, expect, expectTypeOf, it } from "vitest"
 import type {
   CursorPaginatedResult,
   CursorPaginationAdapter,
+  CursorPaginationInput,
   CursorPaginationMetadata,
   CursorPaginationOptions,
   CursorPosition,
   OffsetPaginatedResult,
+  OffsetPaginationInput,
   OffsetPaginationMetadata,
   OffsetPaginationMetadataOptions,
   OffsetPaginationOptions,
+  PagePaginationInput,
   PaginatedResult,
   PaginationAdapter,
   PaginationError,
@@ -44,6 +47,18 @@ describe("public API", () => {
   it("preserves the public type contracts", () => {
     expectTypeOf<PaginationMetadata["page"]>().toEqualTypeOf<number>()
     expectTypeOf<PaginationInput>().toEqualTypeOf<string | number>()
+    expectTypeOf<PagePaginationInput>().toEqualTypeOf<{
+      page?: string | number | undefined
+      limit?: string | number | undefined
+    }>()
+    expectTypeOf<OffsetPaginationInput>().toEqualTypeOf<{
+      offset?: string | number | undefined
+      limit?: string | number | undefined
+    }>()
+    expectTypeOf<CursorPaginationInput>().toEqualTypeOf<{
+      cursor?: string | undefined
+      limit?: string | number | undefined
+    }>()
     expectTypeOf<PaginationOptions<string, number, boolean>["page"]>().toEqualTypeOf<
       string | number | undefined
     >()
@@ -65,5 +80,43 @@ describe("public API", () => {
     expectTypeOf<CursorPaginationOptions<string, boolean>["adapter"]>().toEqualTypeOf<
       CursorPaginationAdapter<string, boolean>
     >()
+  })
+
+  it("accepts explicit undefined in public pagination options", () => {
+    const adapter: PaginationAdapter<string, number, boolean> = {
+      fetch: async () => [],
+      count: async () => 0,
+    }
+    const pageInput: PagePaginationInput = { page: undefined, limit: undefined }
+    const offsetInput: OffsetPaginationInput = { offset: undefined, limit: undefined }
+    const cursorInput: CursorPaginationInput = { cursor: undefined, limit: undefined }
+
+    const pageOptions: PaginationOptions<string, number, boolean> = {
+      adapter,
+      query: "query",
+      countQuery: 0,
+      ...pageInput,
+      pageSizeOptions: { defaultLimit: undefined, minLimit: undefined, maxLimit: undefined },
+    }
+    const offsetOptions: OffsetPaginationOptions<string, number, boolean> = {
+      adapter,
+      query: "query",
+      countQuery: 0,
+      ...offsetInput,
+      pageSizeOptions: undefined,
+    }
+    const cursorOptions: CursorPaginationOptions<string, boolean> = {
+      adapter: {
+        fetch: async () => [],
+        getPosition: () => [{ key: "id", direction: "asc", value: 1 }],
+      },
+      query: "query",
+      ...cursorInput,
+      pageSizeOptions: undefined,
+    }
+
+    expectTypeOf(pageOptions).toEqualTypeOf<PaginationOptions<string, number, boolean>>()
+    expectTypeOf(offsetOptions).toEqualTypeOf<OffsetPaginationOptions<string, number, boolean>>()
+    expectTypeOf(cursorOptions).toEqualTypeOf<CursorPaginationOptions<string, boolean>>()
   })
 })

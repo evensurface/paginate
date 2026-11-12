@@ -87,7 +87,10 @@ const result = await paginate({
 
 Request values may be numbers, numeric strings, or missing values. You do not need to parse
 query-string values before passing them to `paginate`. Runtime validation remains defensive for
-untyped JavaScript callers and invalid values use the documented fallbacks.
+untyped JavaScript callers and invalid values use the documented fallbacks. Optional request
+properties may also be present with the value `undefined`, including when
+`exactOptionalPropertyTypes` is enabled. Use `PagePaginationInput`, `OffsetPaginationInput`, or
+`CursorPaginationInput` to share these request-level contracts without database-specific fields.
 
 ### Use a native offset
 
@@ -109,7 +112,8 @@ The offset is zero-based and may be any non-negative safe integer; it does not n
 numbered page. Missing or invalid offsets become `0`. An offset at or beyond the total is preserved
 and returns an empty `items` array without calling the adapter's fetch method.
 
-Native offset results contain only offset-relevant metadata:
+Offset results use the same stable `{ items, pagination }` structure as the other pagination modes
+and contain only offset-relevant metadata:
 
 ```ts
 {
@@ -121,17 +125,6 @@ Native offset results contain only offset-relevant metadata:
     hasNextPage: true,
     hasPreviousPage: true,
   },
-}
-```
-
-This supports endpoint conventions that flatten pagination metadata:
-
-```ts
-return {
-  users: result.items,
-  total: result.pagination.total,
-  limit: result.pagination.limit,
-  offset: result.pagination.offset,
 }
 ```
 

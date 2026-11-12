@@ -1,6 +1,6 @@
 {
   "name": "@evensurface/paginate-better-auth",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Page and offset pagination for Better Auth database adapters.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",

@@ -360,8 +360,11 @@ const result = await paginateDrizzle({
 ```
 
 Page, offset, and limit values may come directly from URL query parameters. Invalid pages become
-page `1`, while invalid offsets become `0`. A page above the available range resolves to the last
-page; a native offset at or beyond the total remains unchanged and returns no items.
+page `1`, while invalid offsets become `0`. These optional inputs may be explicitly `undefined`
+under `exactOptionalPropertyTypes`; the core package exports `PagePaginationInput`,
+`OffsetPaginationInput`, and `CursorPaginationInput` for request-level typing. A page above the
+available range resolves to the last page; a native offset at or beyond the total remains unchanged
+and returns no items.
 
 ## Always use deterministic ordering
 

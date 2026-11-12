@@ -220,6 +220,11 @@ Cursor columns can represent strings, finite numbers, bigints, or dates. Custom 
 
 ## Important behavior
 
+Page, offset, cursor, and limit values may be passed directly from request objects, including
+explicit `undefined` values under `exactOptionalPropertyTypes`. The core package exports
+`PagePaginationInput`, `OffsetPaginationInput`, and `CursorPaginationInput` for framework-neutral
+request typing. Numeric validation and normalization retain the defaults described above.
+
 - **Query reuse protection:** page, offset, and cursor query factories must produce fresh select builders.
 - **Type inference:** partial selects and joins retain the selected row type. Ensure count queries match the rows being paginated; one-to-many joins can otherwise count different entities than the fetched rows.
 - **Sorting:** add a unique tie-breaker; create a suitable index for your filters and ordering, especially for cursor pagination.

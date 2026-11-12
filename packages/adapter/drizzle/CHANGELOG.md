@@ -1,5 +1,13 @@
 # @evensurface/paginate-drizzle
 
+## 3.1.0
+
+### Patch Changes
+
+- Accept explicitly undefined pagination inputs and export reusable request input types.
+- Updated dependencies
+  - @evensurface/paginate@3.1.0
+
 ## 3.0.0
 
 ### Major Changes

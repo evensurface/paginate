@@ -1,9 +1,4 @@
 {
   "title": "Adapters",
-  "pages": [
-    "index",
-    "drizzle",
-    "better-auth",
-    "create-your-own"
-  ]
+  "pages": ["index", "drizzle", "better-auth", "create-your-own"]
 }

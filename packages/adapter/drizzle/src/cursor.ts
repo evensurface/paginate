@@ -1,10 +1,10 @@
 import {
   type CursorPaginatedResult,
   type CursorPaginationAdapter,
+  type CursorPaginationInput,
   type CursorPosition,
   type CursorValue,
   type PageSizeOptions,
-  type PaginationInput,
   paginateCursor as paginateCursorCore,
 } from "@evensurface/paginate"
 import { type AnyColumn, and, asc, desc, eq, gt, lt, or, type SQL } from "drizzle-orm"
@@ -67,14 +67,12 @@ export type DrizzleCursorOrder<TItem> = readonly [
   ...DrizzleCursorOrderEntry<TItem>[],
 ]
 
-export interface DrizzleCursorPaginationOptions<TItem> {
+export interface DrizzleCursorPaginationOptions<TItem> extends CursorPaginationInput {
   /** Creates a fresh query and combines `cursorWhere` with all application filters. */
   query: DrizzleCursorQueryFactory<TItem>
   /** Deterministic ordering ending in a unique, immutable tie-breaker. */
   orderBy: DrizzleCursorOrder<TItem>
-  cursor?: string
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 
 const cursorQueries = new WeakSet<object>()

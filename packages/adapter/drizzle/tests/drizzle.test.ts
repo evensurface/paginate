@@ -1,3 +1,4 @@
+import type { OffsetPaginationInput, PagePaginationInput } from "@evensurface/paginate"
 import { count, desc, eq } from "drizzle-orm"
 import { int, mysqlTable, varchar } from "drizzle-orm/mysql-core"
 import { drizzle as drizzleMysql } from "drizzle-orm/mysql-proxy"
@@ -6,7 +7,13 @@ import { drizzle as drizzlePg } from "drizzle-orm/pg-proxy"
 import { integer as sqliteInteger, sqliteTable, text as sqliteText } from "drizzle-orm/sqlite-core"
 import { drizzle as drizzleSqlite } from "drizzle-orm/sqlite-proxy"
 import { describe, expect, expectTypeOf, it, vi } from "vitest"
-import { createDrizzleAdapter, paginateDrizzle, paginateDrizzleOffset } from "../src/index"
+import {
+  createDrizzleAdapter,
+  type DrizzleOffsetPaginationOptions,
+  type DrizzlePaginationOptions,
+  paginateDrizzle,
+  paginateDrizzleOffset,
+} from "../src/index"
 
 interface User {
   id: number
@@ -157,6 +164,21 @@ describe("createDrizzleAdapter", () => {
 })
 
 describe("paginateDrizzle", () => {
+  it("accepts explicit undefined in shared page request inputs", async () => {
+    const input: PagePaginationInput = { page: undefined, limit: undefined }
+    const { query } = createSelectQuery([{ id: 1, name: "Ada" }])
+    const options: DrizzlePaginationOptions<User> = {
+      query: () => query,
+      countQuery: Promise.resolve(1),
+      ...input,
+      pageSizeOptions: undefined,
+    }
+    const result = await paginateDrizzle(options)
+
+    expect(result.pagination).toMatchObject({ page: 1, limit: 20, offset: 0 })
+    expectTypeOf(result.items).toEqualTypeOf<User[]>()
+  })
+
   it("returns items and pagination metadata", async () => {
     const users = Array.from({ length: 25 }, (_, index) => ({
       id: index + 1,
@@ -506,6 +528,21 @@ describe("paginateDrizzle", () => {
 })
 
 describe("paginateDrizzleOffset", () => {
+  it("accepts explicit undefined in shared offset request inputs", async () => {
+    const input: OffsetPaginationInput = { offset: undefined, limit: undefined }
+    const { query } = createSelectQuery([{ id: 1, name: "Ada" }])
+    const options: DrizzleOffsetPaginationOptions<User> = {
+      query: () => query,
+      countQuery: Promise.resolve(1),
+      ...input,
+      pageSizeOptions: { maxLimit: undefined },
+    }
+    const result = await paginateDrizzleOffset(options)
+
+    expect(result.pagination).toMatchObject({ limit: 20, offset: 0 })
+    expectTypeOf(result.items).toEqualTypeOf<User[]>()
+  })
+
   it("returns items and native offset metadata", async () => {
     const users = Array.from({ length: 25 }, (_, index) => ({
       id: index + 1,

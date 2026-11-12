@@ -5,7 +5,7 @@ Add page-number or offset pagination to a Better Auth database adapter.
 ## Installation
 
 ```sh
-pnpm add @evensurface/paginate-better-auth better-auth
+pnpm add @evensurface/paginate @evensurface/paginate-better-auth better-auth
 ```
 
 ## Quick start
@@ -79,6 +79,71 @@ For three rows, the result starts at the second row:
   },
 }
 ```
+
+## Match Better Auth's list response
+
+The pagination functions return Paginate's stable `{ items, pagination }` result. They do not
+automatically return Better Auth's flat list shape:
+
+```ts
+type BetterAuthListResult = {
+  users: User[]
+  total: number
+  limit: number | undefined
+  offset: number | undefined
+}
+```
+
+If an endpoint must match that contract, transform the result explicitly:
+
+```ts
+const requestedLimit = ctx.query.limit
+const requestedOffset = ctx.query.offset
+
+const result = await paginateBetterAuthOffset<User>({
+  adapter: ctx.context.adapter,
+  model: "user",
+  limit: requestedLimit,
+  offset: requestedOffset,
+  sortBy: { field: "createdAt", direction: "desc" },
+})
+
+return {
+  users: result.items,
+  total: result.pagination.total,
+  limit: requestedLimit === undefined ? undefined : result.pagination.limit,
+  offset: requestedOffset === undefined ? undefined : result.pagination.offset,
+}
+```
+
+This preserves `undefined` when the client omitted a value while returning normalized numbers for
+provided values. If the endpoint should always expose the effective defaults instead, return
+`result.pagination.limit` and `result.pagination.offset` directly.
+
+## Use request validation of your choice
+
+Paginate does not depend on a validation library. A Better Auth plugin may validate its query with
+Zod, Valibot, ArkType, another Standard Schema-compatible library, or application code. Once that
+schema produces request values, pass them directly:
+
+```ts
+import type { OffsetPaginationInput } from "@evensurface/paginate"
+
+declare const query: OffsetPaginationInput
+
+const result = await paginateBetterAuthOffset<Follow>({
+  adapter: ctx.context.adapter,
+  model: "follow",
+  sortBy: { field: "id", direction: "asc" },
+  limit: query.limit,
+  offset: query.offset,
+})
+```
+
+The request types accept `string | number | undefined`, including explicitly present `undefined`
+properties under `exactOptionalPropertyTypes`. Validation decides which transport values enter the
+handler; Paginate independently keeps its existing normalization behavior for missing or invalid
+numeric inputs.
 
 ## Select fields
 

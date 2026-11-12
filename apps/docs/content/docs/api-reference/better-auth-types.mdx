@@ -100,9 +100,9 @@ interface BetterAuthPaginationOptions {
   sortBy?: BetterAuthSortBy
   select?: BetterAuthSelect
   join?: BetterAuthJoin
-  page?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  page?: PaginationInput | undefined
+  limit?: PaginationInput | undefined
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 ```
 
@@ -122,9 +122,9 @@ interface BetterAuthOffsetPaginationOptions {
   sortBy?: BetterAuthSortBy
   select?: BetterAuthSelect
   join?: BetterAuthJoin
-  offset?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  offset?: PaginationInput | undefined
+  limit?: PaginationInput | undefined
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 ```
 

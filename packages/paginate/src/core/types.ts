@@ -41,6 +41,24 @@ export type PaginationPageItem = number | "ellipsis"
 import type { PaginationInput } from "./integer"
 import type { PageSizeOptions } from "./page"
 
+/** Request-level inputs for page-number pagination. */
+export interface PagePaginationInput {
+  page?: PaginationInput | undefined
+  limit?: PaginationInput | undefined
+}
+
+/** Request-level inputs for zero-based offset pagination. */
+export interface OffsetPaginationInput {
+  offset?: PaginationInput | undefined
+  limit?: PaginationInput | undefined
+}
+
+/** Request-level inputs for forward cursor pagination. */
+export interface CursorPaginationInput {
+  cursor?: string | undefined
+  limit?: PaginationInput | undefined
+}
+
 export interface PaginationAdapter<TQuery, TCountQuery, TItem> {
   fetch(query: TQuery, options: { limit: number; offset: number }): Promise<TItem[]>
 
@@ -56,36 +74,30 @@ export interface CursorPaginationAdapter<TQuery, TItem> {
   getPosition(item: TItem): CursorPosition
 }
 
-export interface PaginationOptions<TQuery, TCountQuery, TItem> {
+export interface PaginationOptions<TQuery, TCountQuery, TItem> extends PagePaginationInput {
   adapter: PaginationAdapter<TQuery, TCountQuery, TItem>
 
   query: TQuery
   countQuery: TCountQuery
 
-  page?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 
-export interface OffsetPaginationOptions<TQuery, TCountQuery, TItem> {
+export interface OffsetPaginationOptions<TQuery, TCountQuery, TItem> extends OffsetPaginationInput {
   adapter: PaginationAdapter<TQuery, TCountQuery, TItem>
 
   query: TQuery
   countQuery: TCountQuery
 
-  offset?: PaginationInput
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 
-export interface CursorPaginationOptions<TQuery, TItem> {
+export interface CursorPaginationOptions<TQuery, TItem> extends CursorPaginationInput {
   adapter: CursorPaginationAdapter<TQuery, TItem>
 
   query: TQuery
 
-  cursor?: string
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 
 export interface PaginatedResult<TItem> {

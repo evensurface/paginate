@@ -1,9 +1,15 @@
-import { isPaginationError } from "@evensurface/paginate"
+import {
+  isPaginationError,
+  type OffsetPaginationInput,
+  type PagePaginationInput,
+} from "@evensurface/paginate"
 import type { AuthContext } from "better-auth"
 import { describe, expect, expectTypeOf, it, vi } from "vitest"
 import {
   type BetterAuthDatabaseAdapter,
   type BetterAuthJoin,
+  type BetterAuthOffsetPaginationOptions,
+  type BetterAuthPaginationOptions,
   type BetterAuthSelect,
   type BetterAuthSortBy,
   type BetterAuthWhere,
@@ -273,6 +279,33 @@ describe("Better Auth pagination", () => {
       offset: -1,
     })
     expect(offset.pagination).toMatchObject({ offset: 0, limit: 20 })
+  })
+
+  it("accepts explicit undefined from request-level input objects", async () => {
+    const items = [{ id: "1", followerId: "user-1" }]
+    const pageInput: PagePaginationInput = { page: undefined, limit: undefined }
+    const offsetInput: OffsetPaginationInput = { offset: undefined, limit: undefined }
+
+    const pageOptions: BetterAuthPaginationOptions = {
+      adapter: createAdapter(items).adapter,
+      model: "follow",
+      ...pageInput,
+      pageSizeOptions: undefined,
+    }
+    const offsetOptions: BetterAuthOffsetPaginationOptions = {
+      adapter: createAdapter(items).adapter,
+      model: "follow",
+      ...offsetInput,
+      pageSizeOptions: { defaultLimit: undefined },
+    }
+
+    const page = await paginateBetterAuth<Follow>(pageOptions)
+    const offset = await paginateBetterAuthOffset<Follow>(offsetOptions)
+
+    expect(page.pagination).toMatchObject({ page: 1, limit: 20, offset: 0 })
+    expect(offset.pagination).toMatchObject({ limit: 20, offset: 0 })
+    expectTypeOf(page.items).toEqualTypeOf<Follow[]>()
+    expectTypeOf(offset.items).toEqualTypeOf<Follow[]>()
   })
 
   it("skips fetching empty and out-of-range results", async () => {

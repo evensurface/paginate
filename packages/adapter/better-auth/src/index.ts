@@ -1,9 +1,10 @@
 import {
   type OffsetPaginatedResult,
+  type OffsetPaginationInput,
+  type PagePaginationInput,
   type PageSizeOptions,
   type PaginatedResult,
   type PaginationAdapter,
-  type PaginationInput,
   paginate as paginateCore,
   paginateOffset as paginateOffsetCore,
 } from "@evensurface/paginate"
@@ -29,25 +30,24 @@ export type BetterAuthJoin = NonNullable<BetterAuthFindManyOptions["join"]>
 
 interface BetterAuthQuery {
   model: BetterAuthFindManyOptions["model"]
-  where?: BetterAuthFindManyOptions["where"]
-  sortBy?: BetterAuthSortBy
-  select?: BetterAuthSelect
-  join?: BetterAuthJoin
+  where?: BetterAuthFindManyOptions["where"] | undefined
+  sortBy?: BetterAuthSortBy | undefined
+  select?: BetterAuthSelect | undefined
+  join?: BetterAuthJoin | undefined
 }
 
 interface BetterAuthPaginationBaseOptions extends BetterAuthQuery {
   adapter: BetterAuthDatabaseAdapter
-  limit?: PaginationInput
-  pageSizeOptions?: PageSizeOptions
+  pageSizeOptions?: PageSizeOptions | undefined
 }
 
-export interface BetterAuthPaginationOptions extends BetterAuthPaginationBaseOptions {
-  page?: PaginationInput
-}
+export interface BetterAuthPaginationOptions
+  extends BetterAuthPaginationBaseOptions,
+    PagePaginationInput {}
 
-export interface BetterAuthOffsetPaginationOptions extends BetterAuthPaginationBaseOptions {
-  offset?: PaginationInput
-}
+export interface BetterAuthOffsetPaginationOptions
+  extends BetterAuthPaginationBaseOptions,
+    OffsetPaginationInput {}
 
 function createPaginationAdapter<TItem extends object>(
   adapter: BetterAuthDatabaseAdapter,

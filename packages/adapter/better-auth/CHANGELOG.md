@@ -1,5 +1,11 @@
 # @evensurface/paginate-better-auth
 
+## 1.0.2
+
+### Patch Changes
+
+- 5930e8b: Support Better Auth versions from 1.7.0 onward within the 1.7 release line.
+
 ## 1.0.1
 
 ### Patch Changes

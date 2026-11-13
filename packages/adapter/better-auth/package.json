@@ -68,7 +68,7 @@
     "@evensurface/paginate": "workspace:^"
   },
   "peerDependencies": {
-    "better-auth": ">=1.7.18 <1.8.0"
+    "better-auth": ">=1.7.0 <1.8.0"
   },
   "devDependencies": {
     "@better-auth/memory-adapter": "1.7.18",

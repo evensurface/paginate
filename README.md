@@ -3,7 +3,8 @@
 `@evensurface/paginate` is a small, type-safe page, offset, and cursor pagination library for
 Node.js and TypeScript. It supports counted navigation and genuine count-free keyset traversal.
 
-Use the core package with any database or ORM, or add the first-party Drizzle ORM adapter.
+Use the core package with any database or ORM, or add a first-party adapter for Drizzle ORM or
+Better Auth.
 
 > The `@evensurface` npm scope and the
 > [`evensurface/paginate`](https://github.com/evensurface/paginate) repository are planned
@@ -15,6 +16,7 @@ Use the core package with any database or ORM, or add the first-party Drizzle OR
 | --- | --- | --- |
 | `@evensurface/paginate` | You want ORM-agnostic pagination utilities or a custom adapter | [Core guide](packages/paginate/README.md) |
 | `@evensurface/paginate-drizzle` | You use Drizzle ORM and want inferred row types | [Drizzle guide](packages/adapter/drizzle/README.md) |
+| `@evensurface/paginate-better-auth` | You use a Better Auth 1.7.x database adapter | [Better Auth guide](packages/adapter/better-auth/README.md) |
 
 ## What it handles
 

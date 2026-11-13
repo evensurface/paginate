@@ -8,6 +8,12 @@ Add page-number or offset pagination to a Better Auth database adapter.
 pnpm add @evensurface/paginate @evensurface/paginate-better-auth better-auth
 ```
 
+## Better Auth compatibility
+
+This package supports Better Auth `>=1.7.0 <1.8.0`: every stable `1.7.x` release starting with
+`1.7.0`. Better Auth `1.8.x` is not included until compatibility with that release line has been
+tested.
+
 ## Quick start
 
 Use the adapter available inside a Better Auth plugin endpoint:
